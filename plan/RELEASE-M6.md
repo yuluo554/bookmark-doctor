@@ -50,7 +50,14 @@
 - 冻结态自检：下载的 zip 解包 → CLI --version 0.1.0 + test_m5/test_bench **23 passed** + gen_fixtures --check 位级一致；
 - 可见性：当前 **private**；三清前提已满足（历史三扫 0 / 坏 blob 修净 / 失败 run 无）——切 public 待用户确认。
 
-## 6. 发布后复核（执行后回填）
+## 6. 发布后复核（已执行，2026-10-15）
 
-- GitHub 全新 clone → 历史扫描 + 全量测试 + 端到端复跑：待回填
-- RELEASE-M6 回填提交：待回填（不迁 tag）
+- **GitHub 全新 clone**（SSH 通路）→ `git log --oneline -1` = `c9ef410`、tag `v0.1.0` 在位、全史 author/committer 邮箱均 noreply；
+- 历史三扫复跑：全对象（blob+commit）扫描——0 个人信息命中（`qq.com` 全部为 `mp.weixin.qq.com` 站点域名词面；数字类全部为 epoch/WebKit 时间戳与微博 visitor URL 内置随机数，逐条核实非手机号/身份证）；
+- 全新 venv（3.8.8）按 README 逐条：install exit 0 / `run` 端到端 exit 0 / `bench` B1–B6 exit 0 / 全量测试 **145 passed**；
+- RELEASE-M6 回填提交：`c9ef410`（push 后 CI run `38767319410` 全绿，未迁 tag——tag 仍指 `a7213be`）。
+
+## 7. 可见性（当前 private，切 public 待用户确认）
+
+- 三清前提已满足：历史三扫 0 个人信息命中 / 坏 blob 无（`git fsck` 清净）/ 失败 run 无（4 run 全 success）；
+- 切 public 待用户拍板：`gh repo edit yuluo554/bookmark-doctor --visibility public`。
