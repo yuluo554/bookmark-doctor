@@ -1,6 +1,6 @@
 # bookmark-doctor（收藏夹体检工具 · 中文站点友好）
 
-> **状态：开发中（M5 交付已就绪，全链路闭环）** —— 计划文档、数据资产、检测/去重引擎、内置基准与 `report`/`export`/`run` 全子命令已落盘（见 [plan/06-里程碑与每周演示.md](plan/06-里程碑与每周演示.md)）。CI 配置已就位（**未接远端，待首次推送验证**）。
+> **状态：✅ v0.1.0 已发布（2026-10-15）** —— 计划文档、数据资产、检测/去重引擎、内置基准与全子命令（import/check/dedupe/report/export/run）均已落盘并跑通。Release：[v0.1.0](https://github.com/yuluo554/bookmark-doctor/releases/tag/v0.1.0)；CI 三矩阵（windows 3.8/3.12 + ubuntu 3.12）全绿。
 
 导入浏览器导出的 `bookmarks.html`，一次跑完失效检测 + 重复合并 + 长期未访问画像 + 一键导回，**并专门适配中文站点**——微信文章 / 知乎 / B站 / 微博的链接不能按普通 HTTP 状态一刀切。零依赖、纯本地 CLI（不是浏览器扩展）。
 
@@ -49,16 +49,30 @@ PYTHONPATH=src py -X utf8 -m bookmark_doctor run data/fixtures/set-1/bookmarks.n
 PYTHONPATH=src py -X utf8 tools/bench.py
 ```
 
-## 规划中的完整能力（按里程碑开放）
+## 完整能力（v0.1.0 全部开放）
 
 | 子命令 | 能力 | 里程碑 |
 |---|---|---|
 | `import` | Netscape HTML / Chrome·Edge JSON 导入与多源合并 | M2 |
 | `check` | 中文站点感知失效检测（降级规则库 + 锚点硬门） | M3 |
 | `dedupe` | URL 规范化去重（剥追踪参数 / http-https 归一 / 已实测短链映射） | M3 |
-| `report` | 本地单文件 HTML 报告（失效 / 待复核 / 重复 / 未访问画像 / 建议清理）✅ | M5 |
-| `export` | 一键导回浏览器可导入的 Netscape Bookmark HTML（默认不删不改；`--apply-dedupe`/`--exclude-dead` 显式开关）✅ | M5 |
-| `run` | 一条命令串起全流程 ✅ | M5 |
+| `report` | 本地单文件 HTML 报告（失效 / 待复核 / 重复 / 未访问画像 / 建议清理） | M5 |
+| `export` | 一键导回浏览器可导入的 Netscape Bookmark HTML（默认不删不改；`--apply-dedupe`/`--exclude-dead` 显式开关） | M5 |
+| `run` | 一条命令串起全流程 | M5 |
+
+## 下载即用
+
+- **源码包**（推荐）：从 [Release v0.1.0](https://github.com/yuluo554/bookmark-doctor/releases/tag/v0.1.0) 下载 `bookmark-doctor-0.1.0-source.zip`（便携源码包，解压即用）或 `bookmark_doctor-0.1.0.tar.gz`（标准 sdist）；附件 sha256 见 Release 说明与 `plan/RELEASE-M6.md`。
+- **免安装运行**：源码树内 `PYTHONPATH=src python -X utf8 -m bookmark_doctor <子命令>`，无需 `pip install`（零第三方运行时依赖）。
+- **安装为命令**：`python -m pip install -e .` 后直接用 `bookmark-doctor <子命令>`。
+- 要求 Python ≥ 3.8；无需联网（仅 `check` 探测时需要访问被检测的链接）。
+
+## 已知环境问题
+
+- **Python 3.8 自带 pip 20 不支持 `pyproject.toml` 可编辑安装**（报 "editable mode currently requires a setup.py based build"）→ 先 `python -m pip install --upgrade pip` 再 `-e`（README 快速开始第 3 步已含）。
+- **Windows 控制台中文输出**：CLI 入口已内置 UTF-8 守卫；直接用 `python -m bookmark_doctor` 时建议加 `-X utf8`（README 命令均带）。
+- **`--exclude-dead` / `--apply-dedupe` 需配套产物**：开关必须与 `--check` / `--dedupe` 对应产物同用，缺失则 exit 2（防误删——默认不删不改）。
+
 
 ## 内置基准（M4：可证明达标，一键复跑）
 
