@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bookmark-doctor"
+description = "收藏夹体检工具（中文站点友好）：失效检测 / 重复合并 / 长期未访问画像 / 一键导回；纯本地 CLI，运行时零第三方依赖"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "yuluo554" }]
+keywords = ["bookmarks", "bookmark-manager", "link-checker", "cli", "privacy", "local-first"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Utilities",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+# 运行时零第三方依赖（纯标准库）。
+# dev = 测试期依赖；测试面 = 安装面 = README 指令面（README 快速开始与 CI 使用同一 extras 集合）。
+# pyyaml：供 CI workflow 解析守门测试使用（防"非法 YAML → GitHub 不建任何 job"的静默失败）。
+dev = ["pytest>=7", "pyyaml>=6"]
+
+[project.scripts]
+bookmark-doctor = "bookmark_doctor.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "bookmark_doctor.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

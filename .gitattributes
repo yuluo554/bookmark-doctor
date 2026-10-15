@@ -1,0 +1,18 @@
+# 源码与文本：检出统一 LF
+* text=auto eol=lf
+
+# 二进制（出现即在此登记）
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.woff binary
+*.woff2 binary
+
+# 字节冻结区：台账登记 sha256 的合成集 / 规则包 / 观测快照，禁止 EOL 归一化改写字节
+data/fixtures/** -text
+data/rules/** -text
+data/measurements/** -text

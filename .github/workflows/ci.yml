@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # 旧解释器（3.8，项目底线）只在 windows 守；ubuntu 新镜像对 3.8 支持存疑，
+        # POSIX 通路走 ubuntu 3.12（见 plan/03 §5）。
+        include:
+          - { os: windows-latest, python: "3.8" }
+          - { os: windows-latest, python: "3.12" }
+          - { os: ubuntu-latest, python: "3.12" }
+    env:
+      # 救 CI 全部步骤的编码盲区（代码侧另有入口守卫；两层都要）
+      PYTHONUTF8: "1"
+      # 防 pyc 偶发损坏
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 为后续"历史扫描类守门测试"预留：浅克隆会让那类测试静默空验
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install package with dev extras
+        run: python -m pip install -e ".[dev]"
+      - name: Run tests
+        run: python -m pytest -q
+      - name: Smoke test console script version
+        run: bookmark-doctor --version
+      - name: Smoke test console script selftest
+        run: bookmark-doctor --selftest
+      - name: Smoke test module form selftest
+        run: python -m bookmark_doctor --selftest
