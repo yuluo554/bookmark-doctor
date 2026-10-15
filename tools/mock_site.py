@@ -1,7 +1,8 @@
 """本地 mock 站点（M1 雏形；M4 基准复用）。
 
 按路径脚本化响应（plan/05 §4.3）：
-- ``/status/403``、``/status/521`` … → 对应状态码（403/302/301/521/404/410/200）；
+- ``/status/403``、``/status/521`` … → 对应状态码（200/301/302/403/404/405/410/521；
+  405 供 HEAD→GET 降级语义场景——M3 补全，M3 前不在集内）；
 - ``/redirect/302`` → 302 跳到 ``/final/200``（模拟风控跳转链）；
 - ``/redirect/301`` → 301 跳到 ``/final/200``；
 - ``/redirect/loop`` → 302 自环（跳转成环场景）；
@@ -24,7 +25,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from bookmark_doctor._encoding import ensure_utf8_stdio
 
-_STATUS_CODES = (200, 301, 302, 403, 404, 410, 521)
+_STATUS_CODES = (200, 301, 302, 403, 404, 405, 410, 521)
 
 
 class MockHandler(BaseHTTPRequestHandler):

@@ -67,6 +67,47 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="输出路径（默认 tree.json；传 - 则仅 stdout 打印合并摘要不落盘）",
     )
+    parser_check = subparsers.add_parser(
+        "check",
+        help="探测 tree.json 全部书签并分类 → check.json（失效检测）",
+        description=(
+            "对 tree.json（UIR）全部书签做单次逻辑探测（HEAD，405/501 降级 GET）并按"
+            "状态分类表 + 降级规则判定 verdict。串行降频；单 URL 网络失败落 review 不中断；"
+            "文件级失败 exit 2 不落半成品。"
+        ),
+    )
+    parser_check.add_argument("tree", help="tree.json 路径（UIR）")
+    parser_check.add_argument(
+        "--rules",
+        default=None,
+        help="规则包路径（默认 data/rules/ruleset.json 仓库正本；参数保留覆盖位）",
+    )
+    parser_check.add_argument(
+        "--probe-date",
+        default=None,
+        help="探测日期（YYYY-MM-DD；默认当天——产物确定性要求基准传固定值）",
+    )
+    parser_check.add_argument("--out", default="check.json", help="输出路径（默认 check.json）")
+    parser_dedupe = subparsers.add_parser(
+        "dedupe",
+        help="URL 规范化去重 → dedupe.json（重复组清单，绝不自动删）",
+        description=(
+            "对 tree.json（UIR）按规范化比较键分组，输出重复组 + 建议保留项。"
+            "只出清单不删除；--check 提供探测结果时比较键优先用 final_url。"
+        ),
+    )
+    parser_dedupe.add_argument("tree", help="tree.json 路径（UIR）")
+    parser_dedupe.add_argument(
+        "--check",
+        default=None,
+        help="check.json 路径（可选；提供时比较键优先用 normalize(final_url)）",
+    )
+    parser_dedupe.add_argument(
+        "--rules",
+        default=None,
+        help="规则包路径（默认仓库正本；取 tracked_query_params）",
+    )
+    parser_dedupe.add_argument("--out", default="dedupe.json", help="输出路径（默认 dedupe.json）")
     return parser
 
 
@@ -154,6 +195,165 @@ def _cmd_import(args) -> int:
     return 0
 
 
+def _resolve_rules_path(rules_arg):
+    """--rules 覆盖位；缺省取仓库正本（plan/03 §9 单点）。"""
+    return Path(rules_arg) if rules_arg else _REPO_ROOT / "data" / "rules" / "ruleset.json"
+
+
+def _serialize_payload(payload):
+    """check.json / dedupe.json 确定性序列化（K18 纪律，serialize 模块单点）。"""
+    from bookmark_doctor.serialize import serialize_payload
+
+    return serialize_payload(payload)
+
+
+def _cmd_check(args) -> int:
+    import datetime
+
+    from bookmark_doctor.classify import classify
+    from bookmark_doctor.model import serialize_tree
+    from bookmark_doctor.probe import probe_bookmarks
+    from bookmark_doctor.ruleset import RulesetError, load_effective_rules
+    from bookmark_doctor.serialize import write_atomic
+
+    tree_path = Path(args.tree)
+    try:
+        tree = json.loads(tree_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        print("[check] tree.json 不可读: %s" % exc, file=sys.stderr)
+        return 2
+    if tree.get("schema") != "bookmark-doctor.tree-v1":
+        print("[check] 输入不是 bookmark-doctor.tree-v1: %s" % tree_path, file=sys.stderr)
+        return 2
+    try:
+        ruleset, effective_rules, disabled = load_effective_rules(_REPO_ROOT, args.rules)
+    except (RulesetError, OSError, ValueError) as exc:
+        print("[check] 规则包不可用: %s" % exc, file=sys.stderr)
+        return 2
+    probe_date = args.probe_date or datetime.date.today().isoformat()
+    bookmarks = tree.get("bookmarks", [])
+    urls = [bm["url"] for bm in bookmarks]
+    if urls:
+        print(
+            "[check] 探测 %d 条（串行降频，delay=%.2fs）..."
+            % (len(urls), float(ruleset["probe"]["delay_s"])),
+            file=sys.stderr,
+        )
+    records = probe_bookmarks(
+        urls,
+        ruleset["probe"],
+        progress=lambda i, total, url: print(
+            "[check] %d/%d %s" % (i + 1, total, url), file=sys.stderr
+        ),
+    )
+    results = []
+    for record in records:
+        outcome = classify(record, effective_rules)
+        results.append(
+            {
+                "url": record["url"],
+                "final_url": record["final_url"],
+                "redirect_chain": record["redirect_chain"],
+                "http_status": record["http_status"],
+                "error_class": record["error_class"],
+                "verdict": outcome["verdict"],
+                "reason": outcome["reason"],
+                "rule_id": outcome["rule_id"],
+                "conflict": outcome["conflict"],
+            }
+        )
+    verdict_counts = {}
+    reason_counts = {}
+    for item in results:
+        verdict_counts[item["verdict"]] = verdict_counts.get(item["verdict"], 0) + 1
+        reason_counts[item["reason"]] = reason_counts.get(item["reason"], 0) + 1
+    payload = {
+        "schema": "bookmark-doctor.check-v1",
+        "probe_date": probe_date,
+        "ruleset_version": ruleset.get("version"),
+        "ruleset_revision": ruleset.get("revision"),
+        "rules_disabled": disabled,
+        "summary": {
+            "total": len(results),
+            "verdict_counts": verdict_counts,
+            "reason_counts": reason_counts,
+        },
+        "results": results,
+    }
+    target = Path(args.out) if args.out else Path("check.json")
+    if target.name == "-":
+        print(
+            json.dumps(payload["summary"], ensure_ascii=False, sort_keys=True),
+            flush=True,
+        )
+        return 0
+    try:
+        write_atomic(target, _serialize_payload(payload))
+    except OSError as exc:
+        print("[check] 输出不可写 %s: %s" % (target, exc), file=sys.stderr)
+        return 2
+    print(
+        "[check] 已写入 %s（%s）"
+        % (target, json.dumps(verdict_counts, ensure_ascii=False, sort_keys=True)),
+        file=sys.stderr,
+    )
+    return 0
+
+
+def _cmd_dedupe(args) -> int:
+    from bookmark_doctor.dedupe import build_duplicate_groups
+    from bookmark_doctor.ruleset import RulesetError, load_ruleset
+    from bookmark_doctor.serialize import write_atomic
+
+    tree_path = Path(args.tree)
+    try:
+        tree = json.loads(tree_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        print("[dedupe] tree.json 不可读: %s" % exc, file=sys.stderr)
+        return 2
+    if tree.get("schema") != "bookmark-doctor.tree-v1":
+        print("[dedupe] 输入不是 bookmark-doctor.tree-v1: %s" % tree_path, file=sys.stderr)
+        return 2
+    try:
+        ruleset = load_ruleset(_REPO_ROOT, args.rules)
+    except (RulesetError, OSError, ValueError) as exc:
+        print("[dedupe] 规则包不可用: %s" % exc, file=sys.stderr)
+        return 2
+    tracked_params = ruleset.get("tracked_query_params") or {}
+    check_records = None
+    if args.check:
+        try:
+            check_payload = json.loads(Path(args.check).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            print("[dedupe] check.json 不可读: %s" % exc, file=sys.stderr)
+            return 2
+        check_records = check_payload.get("results", [])
+    groups = build_duplicate_groups(tree.get("bookmarks", []), tracked_params, check_records)
+    payload = {
+        "schema": "bookmark-doctor.dedupe-v1",
+        "ruleset_version": ruleset.get("version"),
+        "summary": {
+            "total": len(tree.get("bookmarks", [])),
+            "duplicate_groups": len(groups),
+        },
+        "duplicate_groups": groups,
+    }
+    target = Path(args.out) if args.out else Path("dedupe.json")
+    if target.name == "-":
+        print(
+            json.dumps(payload["summary"], ensure_ascii=False, sort_keys=True),
+            flush=True,
+        )
+        return 0
+    try:
+        write_atomic(target, _serialize_payload(payload))
+    except OSError as exc:
+        print("[dedupe] 输出不可写 %s: %s" % (target, exc), file=sys.stderr)
+        return 2
+    print("[dedupe] 已写入 %s（重复组 %d）" % (target, len(groups)), file=sys.stderr)
+    return 0
+
+
 def main(argv=None) -> int:
     ensure_utf8_stdio()
     parser = build_parser()
@@ -162,6 +362,10 @@ def main(argv=None) -> int:
         return _selftest()
     if args.command == "import":
         return _cmd_import(args)
+    if args.command == "check":
+        return _cmd_check(args)
+    if args.command == "dedupe":
+        return _cmd_dedupe(args)
     # 未指定任何动作：打印帮助并返回用法错误码（与"子命令必需"形态一致）。
     parser.print_help()
     return 2
