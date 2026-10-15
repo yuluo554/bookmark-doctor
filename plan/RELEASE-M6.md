@@ -41,12 +41,14 @@
 - 对账：push 事件数 = run 数（1 = 1，单次 push 全史）；run `head_sha` = 本地 HEAD `1b426ae` 逐位一致；
 - tag push 行为：见本文件末节"发布后回填"。
 
-## 5. tag 与 Release（执行后回填）
+## 5. tag 与 Release（已执行）
 
-- tag：`v0.1.0`（annotated，打在含终态回写的提交上）
-- Release 附件：ASCII 名（source.zip / tar.gz）+ sha256 以本文件 §3 为准
-- 真下载复核：执行后回填
-- 可见性切换：三清（历史三扫 0 / 坏 blob 修净 / 失败 run 无）后执行，结果回填
+- tag：`v0.1.0`（annotated，打在 `a7213be`——含 RELEASE-M6 留档与 plan/00 回写的提交上），已 push；
+- Release：https://github.com/yuluo554/bookmark-doctor/releases/tag/v0.1.0 （`--notes-file` 中文说明 + 附件 **ASCII 名**）；
+- 附件状态：source.zip（458623 字节）/ tar.gz（64831 字节）均 uploaded；
+- **真下载复核**：`gh release download v0.1.0` → sha256 与 §3 留档**逐位一致**（两文件）；
+- 冻结态自检：下载的 zip 解包 → CLI --version 0.1.0 + test_m5/test_bench **23 passed** + gen_fixtures --check 位级一致；
+- 可见性：当前 **private**；三清前提已满足（历史三扫 0 / 坏 blob 修净 / 失败 run 无）——切 public 待用户确认。
 
 ## 6. 发布后复核（执行后回填）
 
