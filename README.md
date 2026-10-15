@@ -27,22 +27,25 @@ python -m venv .venv
 
 # 2. 激活（Windows: .venv\Scripts\activate ｜ macOS/Linux: source .venv/bin/activate）
 
-# 3. 可编辑安装（含测试依赖）
+# 3. 升级 pip（Python 3.8 自带 pip 20 不支持 pyproject 可编辑安装，必须先升）
+python -m pip install --upgrade pip
+
+# 4. 可编辑安装（含测试依赖）
 python -m pip install -e ".[dev]"
 
-# 4. 冒烟
+# 5. 冒烟
 bookmark-doctor --version
 bookmark-doctor --selftest
 
-# 5. 跑测试
+# 6. 跑测试
 python -m pytest
 
-# 6. 一条命令跑全链路（import → check → dedupe → report → export）
+# 7. 一条命令跑全链路（import → check → dedupe → report → export）
 PYTHONPATH=src py -X utf8 -m bookmark_doctor run data/fixtures/set-1/bookmarks.netscape.html --out-dir out --probe-date 2026-01-01
 #    产物在 out/：tree.json / check.json / dedupe.json / report.html / bookmarks-export.html
 #    report.html 是单文件 HTML（CSS 内联、零外链），断网双击可开
 
-# 7. 内置基准（B1–B6，离线；见下方"内置基准"节）
+# 8. 内置基准（B1–B6，离线；见下方"内置基准"节）
 PYTHONPATH=src py -X utf8 tools/bench.py
 ```
 
