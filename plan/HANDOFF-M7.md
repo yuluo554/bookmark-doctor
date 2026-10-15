@@ -11,7 +11,7 @@
 | tag | `v0.1.0`（annotated，打在 `a7213be`） |
 | Release | https://github.com/yuluo554/bookmark-doctor/releases/tag/v0.1.0 |
 | 附件（ASCII 名 + sha256） | `bookmark-doctor-0.1.0-source.zip` → `c1bca065d7795ecbd50e99db47a649f36f9e29d387dc0d3c023da07e6a689fc6`；`bookmark_doctor-0.1.0.tar.gz` → `dff5badaede292589d70b4f807d17157c2bcc8de6f3faa113df1a0ef1e5e0339` |
-| CI | 全绿：6 run 全 success（矩阵 windows 3.8 / windows 3.12 / ubuntu 3.12；含 tag push 触发 run，实测**会**触发） |
+| CI | 全绿：截至 2026-10-15 收尾快照 `gh api repos/yuluo554/bookmark-doctor/actions/runs` 全部 success（零失败 run）；矩阵 windows 3.8 / windows 3.12 / ubuntu 3.12；tag push 触发 run 实测**会**触发 |
 | 测试基线 | 145 passed（3.8.8 干净 venv 与发布物本体各复跑一次）；bench B1–B6 exit 0；数据生成器 `--check` 双绿 |
 | 发布留档 | `plan/RELEASE-M6.md`（脱敏四步 / 干净环境 / 产物 / 建仓 CI / tag Release / 发布后复核 / 可见性 / 终态 八节） |
 | 脱敏 | 四步全过；提交邮箱全史改写 GitHub noreply（`282769740+yuluo554@users.noreply.github.com`），旧对象 gc 清净，全对象扫描 0 残留 |

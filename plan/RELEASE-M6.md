@@ -38,7 +38,7 @@
 
 - 建仓：`gh repo create bookmark-doctor --private`（先 private）；remote 初建 https → 首推被拒（OAuth token 无 `workflow` scope，拒绝更新 `.github/workflows/ci.yml`）→ **切换 remote 为 SSH**（本机已有已验证 SSH key）→ push 成功。教训留档：gh https 通路对 workflow 文件的 scope 门，SSH 通路不受限；
 - **CI 首跑全绿**（run id `38763701707`）：三矩阵 `windows-3.8 / windows-3.12 / ubuntu-3.12` 全部 success，零诊断轮（预算未消耗；仅 runner 弃用告示，无失败面）；
-- 对账：push 事件数 = run 数（1 = 1，单次 push 全史）；run `head_sha` = 本地 HEAD `1b426ae` 逐位一致；
+- 对账：每次 push 都有对应 run 且全 success（取值方式：`gh api repos/yuluo554/bookmark-doctor/actions/runs`；收尾快照零失败 run）；run `head_sha` 与本地 `git log` 逐提交配对一致；
 - tag push 行为：见本文件末节"发布后回填"。
 
 ## 5. tag 与 Release（已执行）
@@ -72,5 +72,5 @@
 | tag | `v0.1.0`（annotated，打在 `a7213be`） |
 | Release | https://github.com/yuluo554/bookmark-doctor/releases/tag/v0.1.0 |
 | 附件 | `bookmark-doctor-0.1.0-source.zip`（sha256 `c1bca065…`）/ `bookmark_doctor-0.1.0.tar.gz`（sha256 `dff5bada…`） |
-| CI | 全绿（6 run 全 success：windows 3.8 / windows 3.12 / ubuntu 3.12；含 tag push 触发 run 实测会触发） |
+| CI | 全绿（截至 2026-10-15 收尾快照：`gh api repos/yuluo554/bookmark-doctor/actions/runs` 的 run 全为 success，零失败 run；矩阵 windows 3.8 / windows 3.12 / ubuntu 3.12；tag push 触发 run 实测**会**触发） |
 | 结论 | 三件套齐（tag + Release + 本文件），脱敏四步通过，题面 §3 第 1、9 项达成 |
