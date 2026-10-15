@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+*.spec
+*.egg
+
+# 运行产物
+output/
+reports/
+release/
+*.log
+.tmp/
+*.bak
+selftest.json
+
+# 本地书签样本与报告（个人浏览记录，不入仓）
+bookmarks/
+samples-local/
+data/**/_local/
+data/**/_private/
+
+# 环境与密钥
+.env
+*.key
+*_private/
+
+# 系统文件
+Thumbs.db
+Desktop.ini
+.DS_Store
