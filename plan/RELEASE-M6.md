@@ -57,7 +57,20 @@
 - 全新 venv（3.8.8）按 README 逐条：install exit 0 / `run` 端到端 exit 0 / `bench` B1–B6 exit 0 / 全量测试 **145 passed**；
 - RELEASE-M6 回填提交：`c9ef410`（push 后 CI run `38767319410` 全绿，未迁 tag——tag 仍指 `a7213be`）。
 
-## 7. 可见性（当前 private，切 public 待用户确认）
+## 7. 可见性（已切 public，2026-10-15）
 
-- 三清前提已满足：历史三扫 0 个人信息命中 / 坏 blob 无（`git fsck` 清净）/ 失败 run 无（4 run 全 success）；
-- 切 public 待用户拍板：`gh repo edit yuluo554/bookmark-doctor --visibility public`。
+- 三清前提满足：历史三扫 0 个人信息命中 / 坏 blob 无（`git fsck` 清净）/ 失败 run 无；
+- 用户确认后执行 `gh repo edit --visibility public` → `gh repo view --json visibility` = `PUBLIC`（`isPrivate=false`）；
+- topics 已设置：`bookmarks, chinese-web, cli, dead-link-checker, open-source, python, url-dedupe`；
+- **匿名通路复核**（不带凭据）：`git clone https://…` 成功（HEAD `7ecf469`、tag `v0.1.0` 在位）；Release 页 HTTP 200；`curl` 匿名下载 source.zip → sha256 与 §3 留档逐位一致。
+
+## 8. 发布终态
+
+| 项 | 值 |
+|---|---|
+| 仓库 | https://github.com/yuluo554/bookmark-doctor （PUBLIC，署名 yuluo554） |
+| tag | `v0.1.0`（annotated，打在 `a7213be`） |
+| Release | https://github.com/yuluo554/bookmark-doctor/releases/tag/v0.1.0 |
+| 附件 | `bookmark-doctor-0.1.0-source.zip`（sha256 `c1bca065…`）/ `bookmark_doctor-0.1.0.tar.gz`（sha256 `dff5bada…`） |
+| CI | 全绿（6 run 全 success：windows 3.8 / windows 3.12 / ubuntu 3.12；含 tag push 触发 run 实测会触发） |
+| 结论 | 三件套齐（tag + Release + 本文件），脱敏四步通过，题面 §3 第 1、9 项达成 |

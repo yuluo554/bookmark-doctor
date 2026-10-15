@@ -6,7 +6,7 @@
 
 一句话定位：导入浏览器导出的 `bookmarks.html`，一次跑完失效检测 + 重复合并 + 长期未访问画像 + 一键导回，**并专门适配中文站点**——微信文章 / 知乎 / B站 / 微博的链接不能按普通 HTTP 状态一刀切。零依赖、纯本地 CLI（不是浏览器扩展）。
 
-**当前状态**：🚧 发布中 —— M0–M5 已完成；M6（发布）执行中：脱敏四步 ✅（邮箱已全史改写 noreply）、干净环境验证 ✅、产物定案 ✅、private 建仓 + push + CI 首跑全绿 ✅（run 38763701707）；tag/Release/切 public 进行中。实录见 `plan/RELEASE-M6.md`。
+**当前状态**：✅ **已发布 v0.1.0（2026-10-15）** —— M0–M6 全部完成。公开仓库：https://github.com/yuluo554/bookmark-doctor ；Release：https://github.com/yuluo554/bookmark-doctor/releases/tag/v0.1.0 ；CI 三矩阵全绿。发布实录与留档三件套：`plan/RELEASE-M6.md`。
 
 ---
 
@@ -101,7 +101,7 @@
 | **M3 检测与降级规则** | 中文站点感知失效检测 + 重复合并 | 降级规则库加载生效且缺锚点规则不生效；同输入同规则库版本判定可复现；URL 规范化去重可复现 | ✅ 2026-10-15（锚点硬门正式引擎 + 未启用清单进 check.json；check/dedupe 逐字节确定性测试锁定；双解释器 122 passed；变异验证 4 次） |
 | **M4 基准** | 植入真值对账 + 内置基准 | 三类易错形态均有采样件，基准一键复跑 | ✅ 2026-10-15（tools/bench.py B1–B6 全绿 exit 0；false_dead=0；探活 403-dead 注入→exit 1 常驻测试；退出码三语义锁定；双解释器 131 passed；变异验证 classify 403→dead → bench 红、还原绿） |
 | **M5 交付** | CLI 全子命令 + 本地 HTML 报告 + 一键导回 | CLI 可用、纯本地零上传验证通过、报告与导出完整、导出文件可被浏览器导入 | ✅ 2026-10-15（report/export/run 全子命令落地：报告七节 + 零外链硬断言 + 渲染零判定 + 未探测独立分区；aging 分档取 ruleset tiers_days、null 单列；export 默认不删不改 + 显式开关 + 往返一致；run 编排单一源复用各子命令实现；test_m5 14 项新增） |
-| **M6 发布** | GitHub 公开仓库发布 | DoD 必须包含：**①git tag ②GitHub Release（附产物）③发布留档**三件套；发布到 GitHub **公开**仓库，署名 yuluo554 | 🚧 执行中（脱敏四步/干净环境/产物/建仓+CI 首跑全绿已完成；实录 `plan/RELEASE-M6.md`） |
+| **M6 发布** | GitHub 公开仓库发布 | DoD 必须包含：**①git tag ②GitHub Release（附产物）③发布留档**三件套；发布到 GitHub **公开**仓库，署名 yuluo554 | ✅ 2026-10-15（PUBLIC + tag v0.1.0 + Release 附产物 + 脱敏四步过 + CI 全绿；实录 `plan/RELEASE-M6.md`） |
 
 **发布类里程碑 DoD 三件套纪律**：M6 缺任一项（无 tag / 无 Release / 无留档）即为未达成——"代码写完"≠"题做完"。Release 附产物指本地留有 release 产物副本并 sha256 留档可复验。
 
