@@ -1,10 +1,7 @@
 """bookmark-doctor 命令行入口。
 
-骨架期提供 ``--version`` 与 ``--selftest``；``import`` 子命令随 M2 开放；
-其余业务子命令（check / dedupe / report / export / run）按里程碑逐步开放，
-计划见 ``plan/06-里程碑与每周演示.md``。
-
-退出码契约（锁定进测试，plan/03 §8）：
+子命令全集（M5）：``--version``/``--selftest`` + import / check / dedupe /
+report / export / run。退出码契约（锁定进测试，plan/03 §8）：
 - 0 = 运行完成（含"体检发现问题"——问题进报告，不是错误）
 - 2 = 用法错误 / 无参数 / 输入不可用（含解析失败——不落半成品）
 - ``--selftest``：0 通过 / 1 失败
@@ -34,8 +31,8 @@ def build_parser() -> argparse.ArgumentParser:
             "纯本地、零上传、运行时零第三方依赖。"
         ),
         epilog=(
-            "子命令（import 已开放；check / dedupe / report / export / run 随里程碑开放），"
-            "计划见 plan/06-里程碑与每周演示.md。"
+            "子命令：import / check / dedupe / report / export / run。"
+            "报告单文件 HTML 断网可开；导出默认不删不改，合并/剔除须显式开关。"
         ),
     )
     parser.add_argument(
@@ -108,6 +105,95 @@ def build_parser() -> argparse.ArgumentParser:
         help="规则包路径（默认仓库正本；取 tracked_query_params）",
     )
     parser_dedupe.add_argument("--out", default="dedupe.json", help="输出路径（默认 dedupe.json）")
+    parser_report = subparsers.add_parser(
+        "report",
+        help="check/dedupe 产物 → 单文件 HTML 报告（零外链，断网可开）",
+        description=(
+            "渲染单文件 HTML 报告：只消费 check.json / dedupe.json 既有结论"
+            "（渲染层零判定逻辑），附长期未访问画像（阈值取 ruleset aging.tiers_days）。"
+            "资源零外链：CSS 内联、无外部脚本/图片/字体，断网可开。"
+        ),
+    )
+    parser_report.add_argument("tree", help="tree.json 路径（UIR，供标题与未探测分区）")
+    parser_report.add_argument("--check", default="check.json", help="check.json 路径（默认 check.json）")
+    parser_report.add_argument(
+        "--dedupe",
+        default=None,
+        help="dedupe.json 路径（可选；缺省时重复节呈现无数据）",
+    )
+    parser_report.add_argument(
+        "--rules",
+        default=None,
+        help="规则包路径（默认仓库正本；取 aging.tiers_days）",
+    )
+    parser_report.add_argument(
+        "--aging-date",
+        default=None,
+        help="画像参考日（YYYY-MM-DD；默认取 check.json 的 probe_date，再缺省当天）",
+    )
+    parser_report.add_argument("--out", default="report.html", help="输出路径（默认 report.html）")
+    parser_export = subparsers.add_parser(
+        "export",
+        help="tree.json → Netscape HTML 导回文件（默认不删不改）",
+        description=(
+            "导出标准 Netscape Bookmark HTML（浏览器可导入）。默认全量导回、"
+            "不删不改；--apply-dedupe（重复组只留建议保留项）与 --exclude-dead"
+            "（剔除 check 判 dead 条目）为显式可选动作，须同时提供对应产物。"
+        ),
+    )
+    parser_export.add_argument("tree", help="tree.json 路径（UIR）")
+    parser_export.add_argument(
+        "--dedupe",
+        default=None,
+        help="dedupe.json 路径（--apply-dedupe 时必填）",
+    )
+    parser_export.add_argument(
+        "--check",
+        default=None,
+        help="check.json 路径（--exclude-dead 时必填）",
+    )
+    parser_export.add_argument(
+        "--apply-dedupe",
+        action="store_true",
+        help="显式动作：重复组只保留建议保留项（需 --dedupe）",
+    )
+    parser_export.add_argument(
+        "--exclude-dead",
+        action="store_true",
+        help="显式动作：剔除 check 判 dead 的条目（需 --check）",
+    )
+    parser_export.add_argument("--out", default="bookmarks-export.html", help="输出路径（默认 bookmarks-export.html）")
+    parser_run = subparsers.add_parser(
+        "run",
+        help="全链路编排：import → check → dedupe → report → export",
+        description=(
+            "一条命令跑完整链路（编排层：复用各子命令实现，无第二份判定逻辑）。"
+            "产物落在 --out-dir：tree.json / check.json / dedupe.json / report.html /"
+            " bookmarks-export.html；任何文件级失败 exit 2 不落半成品目录。"
+        ),
+    )
+    parser_run.add_argument("files", nargs="+", help="输入文件（.html/.htm = Netscape；.json = Chrome/Edge）")
+    parser_run.add_argument("--out-dir", default=".", help="输出目录（默认当前目录）")
+    parser_run.add_argument(
+        "--probe-date",
+        default=None,
+        help="探测日期（YYYY-MM-DD；默认当天——产物确定性要求传固定值）",
+    )
+    parser_run.add_argument(
+        "--rules",
+        default=None,
+        help="规则包路径（默认仓库正本）",
+    )
+    parser_run.add_argument(
+        "--apply-dedupe",
+        action="store_true",
+        help="导出时显式应用去重（重复组只留建议保留项）",
+    )
+    parser_run.add_argument(
+        "--exclude-dead",
+        action="store_true",
+        help="导出时显式剔除 dead 条目",
+    )
     return parser
 
 
@@ -354,6 +440,183 @@ def _cmd_dedupe(args) -> int:
     return 0
 
 
+def _load_json_file(path, label):
+    """读 JSON 产物；不可读 → (None, 错误消息)。"""
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8")), None
+    except (OSError, ValueError) as exc:
+        return None, "%s 不可读 %s: %s" % (label, path, exc)
+
+
+def _cmd_report(args) -> int:
+    from bookmark_doctor.aging import (
+        AgingConfigError,
+        build_aging_profile,
+        load_aging_tiers,
+    )
+    from bookmark_doctor.report import render_report
+    from bookmark_doctor.ruleset import RulesetError, load_ruleset
+    from bookmark_doctor.serialize import write_atomic
+
+    tree, err = _load_json_file(args.tree, "[report] tree.json")
+    if err:
+        print(err, file=sys.stderr)
+        return 2
+    if tree.get("schema") != "bookmark-doctor.tree-v1":
+        print("[report] 输入不是 bookmark-doctor.tree-v1: %s" % args.tree, file=sys.stderr)
+        return 2
+    check_payload, err = _load_json_file(args.check, "[report] check.json")
+    if err:
+        print(err, file=sys.stderr)
+        return 2
+    dedupe_payload = None
+    if args.dedupe:
+        dedupe_payload, err = _load_json_file(args.dedupe, "[report] dedupe.json")
+        if err:
+            print(err, file=sys.stderr)
+            return 2
+    try:
+        ruleset = load_ruleset(_REPO_ROOT, args.rules)
+    except (RulesetError, OSError, ValueError) as exc:
+        print("[report] 规则包不可用: %s" % exc, file=sys.stderr)
+        return 2
+    try:
+        tiers = load_aging_tiers(ruleset)
+    except AgingConfigError as exc:
+        print("[report] 规则包 aging 配置不可用: %s" % exc, file=sys.stderr)
+        return 2
+    # 参考日：显式参数 > check 的 probe_date > 当天（确定性产物要求基准传定值）
+    aging_date_arg = args.aging_date or check_payload.get("probe_date")
+    if aging_date_arg:
+        import datetime
+
+        try:
+            aging_date = datetime.date.fromisoformat(aging_date_arg)
+        except ValueError:
+            print("[report] 参考日非法（须 YYYY-MM-DD）: %s" % aging_date_arg, file=sys.stderr)
+            return 2
+    else:
+        import datetime
+
+        aging_date = datetime.date.today()
+    profile = build_aging_profile(tree.get("bookmarks", []), tiers, aging_date)
+    html = render_report(
+        check_payload,
+        dedupe_payload,
+        profile,
+        tree_bookmarks=tree.get("bookmarks", []),
+    )
+    target = Path(args.out) if args.out else Path("report.html")
+    try:
+        write_atomic(target, html)
+    except OSError as exc:
+        print("[report] 输出不可写 %s: %s" % (target, exc), file=sys.stderr)
+        return 2
+    print("[report] 已写入 %s" % target, file=sys.stderr)
+    return 0
+
+
+def _cmd_export(args) -> int:
+    from bookmark_doctor.export import export_netscape, filter_bookmarks
+    from bookmark_doctor.serialize import write_atomic
+
+    tree, err = _load_json_file(args.tree, "[export] tree.json")
+    if err:
+        print(err, file=sys.stderr)
+        return 2
+    if tree.get("schema") != "bookmark-doctor.tree-v1":
+        print("[export] 输入不是 bookmark-doctor.tree-v1: %s" % args.tree, file=sys.stderr)
+        return 2
+    if args.apply_dedupe and not args.dedupe:
+        print("[export] --apply-dedupe 需要 --dedupe 产物", file=sys.stderr)
+        return 2
+    if args.exclude_dead and not args.check:
+        print("[export] --exclude-dead 需要 --check 产物", file=sys.stderr)
+        return 2
+    dedupe_payload = None
+    if args.dedupe:
+        dedupe_payload, err = _load_json_file(args.dedupe, "[export] dedupe.json")
+        if err:
+            print(err, file=sys.stderr)
+            return 2
+    check_payload = None
+    if args.check:
+        check_payload, err = _load_json_file(args.check, "[export] check.json")
+        if err:
+            print(err, file=sys.stderr)
+            return 2
+    bookmarks = filter_bookmarks(
+        tree.get("bookmarks", []),
+        dedupe_payload=dedupe_payload,
+        check_payload=check_payload,
+        apply_dedupe=args.apply_dedupe,
+        exclude_dead=args.exclude_dead,
+    )
+    data = export_netscape(bookmarks)
+    target = Path(args.out) if args.out else Path("bookmarks-export.html")
+    try:
+        write_atomic(target, data)
+    except OSError as exc:
+        print("[export] 输出不可写 %s: %s" % (target, exc), file=sys.stderr)
+        return 2
+    print(
+        "[export] 已写入 %s（导出 %d / 共 %d 条）"
+        % (target, len(bookmarks), len(tree.get("bookmarks", []))),
+        file=sys.stderr,
+    )
+    return 0
+
+
+class _Args:
+    """run 编排的 args 传递对象（字段与各子命令 argparse 定义对齐）。"""
+
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+
+def _cmd_run(args) -> int:
+    """全链路编排（单一源）：直接复用各子命令实现，无第二份判定逻辑。"""
+    out_dir = Path(args.out_dir)
+    try:
+        out_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        print("[run] 输出目录不可建 %s: %s" % (out_dir, exc), file=sys.stderr)
+        return 2
+    steps = []
+    steps.append(("import", _cmd_import, _Args(
+        files=list(args.files), out=str(out_dir / "tree.json"))))
+    steps.append(("check", _cmd_check, _Args(
+        tree=str(out_dir / "tree.json"), rules=args.rules,
+        probe_date=args.probe_date, out=str(out_dir / "check.json"))))
+    steps.append(("dedupe", _cmd_dedupe, _Args(
+        tree=str(out_dir / "tree.json"),
+        check=str(out_dir / "check.json"), rules=args.rules,
+        out=str(out_dir / "dedupe.json"))))
+    steps.append(("report", _cmd_report, _Args(
+        tree=str(out_dir / "tree.json"), check=str(out_dir / "check.json"),
+        dedupe=str(out_dir / "dedupe.json"), rules=args.rules,
+        aging_date=args.probe_date, out=str(out_dir / "report.html"))))
+    steps.append(("export", _cmd_export, _Args(
+        tree=str(out_dir / "tree.json"), dedupe=str(out_dir / "dedupe.json"),
+        check=str(out_dir / "check.json"), apply_dedupe=args.apply_dedupe,
+        exclude_dead=args.exclude_dead,
+        out=str(out_dir / "bookmarks-export.html"))))
+    for name, handler, step_args in steps:
+        code = handler(step_args)
+        if code != 0:
+            print("[run] 步骤 %s 失败（exit %d），停止编排" % (name, code), file=sys.stderr)
+            return code
+    print(
+        "[run] 完成：%s" % ", ".join(
+            str(out_dir / name)
+            for name in ("tree.json", "check.json", "dedupe.json",
+                         "report.html", "bookmarks-export.html")
+        ),
+        file=sys.stderr,
+    )
+    return 0
+
+
 def main(argv=None) -> int:
     ensure_utf8_stdio()
     parser = build_parser()
@@ -366,6 +629,12 @@ def main(argv=None) -> int:
         return _cmd_check(args)
     if args.command == "dedupe":
         return _cmd_dedupe(args)
+    if args.command == "report":
+        return _cmd_report(args)
+    if args.command == "export":
+        return _cmd_export(args)
+    if args.command == "run":
+        return _cmd_run(args)
     # 未指定任何动作：打印帮助并返回用法错误码（与"子命令必需"形态一致）。
     parser.print_help()
     return 2

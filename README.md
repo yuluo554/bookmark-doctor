@@ -1,6 +1,6 @@
 # bookmark-doctor（收藏夹体检工具 · 中文站点友好）
 
-> **状态：开发中（M4 基准已就绪）** —— 计划文档、数据资产、检测/去重引擎与内置基准已落盘；报告/导回按里程碑开放（见 [plan/06-里程碑与每周演示.md](plan/06-里程碑与每周演示.md)）。CI 配置已就位（**未接远端，待首次推送验证**）。
+> **状态：开发中（M5 交付已就绪，全链路闭环）** —— 计划文档、数据资产、检测/去重引擎、内置基准与 `report`/`export`/`run` 全子命令已落盘（见 [plan/06-里程碑与每周演示.md](plan/06-里程碑与每周演示.md)）。CI 配置已就位（**未接远端，待首次推送验证**）。
 
 导入浏览器导出的 `bookmarks.html`，一次跑完失效检测 + 重复合并 + 长期未访问画像 + 一键导回，**并专门适配中文站点**——微信文章 / 知乎 / B站 / 微博的链接不能按普通 HTTP 状态一刀切。零依赖、纯本地 CLI（不是浏览器扩展）。
 
@@ -37,7 +37,12 @@ bookmark-doctor --selftest
 # 5. 跑测试
 python -m pytest
 
-# 6. 内置基准（B1–B6，离线；见下方"内置基准"节）
+# 6. 一条命令跑全链路（import → check → dedupe → report → export）
+PYTHONPATH=src py -X utf8 -m bookmark_doctor run data/fixtures/set-1/bookmarks.netscape.html --out-dir out --probe-date 2026-01-01
+#    产物在 out/：tree.json / check.json / dedupe.json / report.html / bookmarks-export.html
+#    report.html 是单文件 HTML（CSS 内联、零外链），断网双击可开
+
+# 7. 内置基准（B1–B6，离线；见下方"内置基准"节）
 PYTHONPATH=src py -X utf8 tools/bench.py
 ```
 
@@ -48,9 +53,9 @@ PYTHONPATH=src py -X utf8 tools/bench.py
 | `import` | Netscape HTML / Chrome·Edge JSON 导入与多源合并 | M2 |
 | `check` | 中文站点感知失效检测（降级规则库 + 锚点硬门） | M3 |
 | `dedupe` | URL 规范化去重（剥追踪参数 / http-https 归一 / 已实测短链映射） | M3 |
-| `report` | 本地单文件 HTML 报告（失效 / 待复核 / 重复 / 未访问画像 / 建议清理） | M5 |
-| `export` | 一键导回浏览器可导入的 Netscape Bookmark HTML | M5 |
-| `run` | 一条命令串起全流程 | M5 |
+| `report` | 本地单文件 HTML 报告（失效 / 待复核 / 重复 / 未访问画像 / 建议清理）✅ | M5 |
+| `export` | 一键导回浏览器可导入的 Netscape Bookmark HTML（默认不删不改；`--apply-dedupe`/`--exclude-dead` 显式开关）✅ | M5 |
+| `run` | 一条命令串起全流程 ✅ | M5 |
 
 ## 内置基准（M4：可证明达标，一键复跑）
 
@@ -78,6 +83,25 @@ PYTHONPATH=src py -X utf8 tools/bench.py --inject-defect 403-dead   # 探活：�
 | B6 一致性 | 同输入两次运行逐字节一致 | 一致 | 位级一致 ✅ |
 
 口径说明（诚实边界）：以上为**合成集上的行为对账**（植入真值的抽样覆盖，非穷举——覆盖声明见 `manifest.json` `coverage` 节，"应有/实际覆盖"双数登记）；真值库只存"输入与期望"，观测字段由基准运行时实算。
+
+## 本地报告与导回（M5）
+
+```bash
+# 全链路：一条命令出全部产物
+PYTHONPATH=src py -X utf8 -m bookmark_doctor run <书签文件...> --out-dir out --probe-date 2026-01-01
+
+# 或分步：报告 / 导回
+PYTHONPATH=src py -X utf8 -m bookmark_doctor report out/tree.json --check out/check.json --dedupe out/dedupe.json --out report.html
+PYTHONPATH=src py -X utf8 -m bookmark_doctor export out/tree.json --out bookmarks-export.html
+# 显式动作（默认不删不改；开关须配套产物，缺失 exit 2）：
+PYTHONPATH=src py -X utf8 -m bookmark_doctor export out/tree.json --dedupe out/dedupe.json --apply-dedupe --out cleaned.html
+PYTHONPATH=src py -X utf8 -m bookmark_doctor export out/tree.json --check out/check.json --exclude-dead --out cleaned.html
+```
+
+- **报告**：单文件 HTML、分节固定（摘要 / 失效 / 待复核 / 重复 / 长期未访问画像 / 未探测条目 / 建议清理 / 口径与免责）；CSS 内联、零外链（无 `<link>`/外部 script/img/@import/外部字体），**断网可开**；渲染层零判定逻辑——只消费 check/dedupe 既有结论，未探测条目独立分区不混入三态。
+- **长期未访问画像**：分档阈值取 ruleset `aging.tiers_days`（1年+ / 2年+ / 3年+）；`add_date` 未知条目单列不计档；口径注明"以添加时间近似未访问"。
+- **导回**：标准 Netscape Bookmark HTML，浏览器书签管理器可直接导入；默认全量导回；导出文件已验证"导出 → 再解析"往返逐条一致。
+- **编排单一源**：`run` 直接复用各子命令实现串接（import → check → dedupe → report → export），无第二份判定逻辑；任一步失败即停止，解析失败不落半成品。
 
 ## 计划与文档
 

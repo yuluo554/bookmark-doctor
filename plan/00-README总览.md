@@ -6,7 +6,7 @@
 
 一句话定位：导入浏览器导出的 `bookmarks.html`，一次跑完失效检测 + 重复合并 + 长期未访问画像 + 一键导回，**并专门适配中文站点**——微信文章 / 知乎 / B站 / 微博的链接不能按普通 HTTP 状态一刀切。零依赖、纯本地 CLI（不是浏览器扩展）。
 
-**当前状态**：🚧 开发中 —— M0（计划先行与骨架）、M1（数据先行）、M2（解析）、M3（检测与去重）、M4（基准）已完成；下一棒 M5（交付）。
+**当前状态**：🚧 开发中 —— M0（计划先行与骨架）、M1（数据先行）、M2（解析）、M3（检测与去重）、M4（基准）、M5（交付）已完成；下一棒 M6（发布）。
 
 ---
 
@@ -24,7 +24,7 @@
 | 07 | `plan/07-交付对标与发布计划.md` | 提交材料对照、评分对策、M6 发布执行清单、风险预算 | 已定稿（M0） |
 | — | `plan/HANDOFF-M1.md` | M1（数据先行）交接快照 | 已落盘（M0 收尾） |
 | — | `plan/HANDOFF-M2.md` | 下一棒（M2 解析）交接快照 | 已落盘（M1 收尾） |
-| — | `plan/HANDOFF-M3.md` / `plan/HANDOFF-M4.md` / `plan/HANDOFF-M5.md` | M3 / M4 交接快照与下一棒交接快照（M4 收尾落盘 M5） | M3、M4 已落盘；M5 交接快照随 M4 收尾落盘 |
+| — | `plan/HANDOFF-M3.md` / `plan/HANDOFF-M4.md` / `plan/HANDOFF-M5.md` / `plan/HANDOFF-M6.md` | M3 / M4 / M5 交接快照与下一棒交接快照（M5 收尾落盘 M6） | M3、M4、M5 已落盘；M6 交接快照随 M5 收尾落盘 |
 | — | `src/bookmark_doctor/{probe,classify,normalize,dedupe,ruleset,serialize}.py` | M3 检测与去重引擎（探测/分类/规范化/去重/规则包加载/确定性写盘） | ✅ M3 落库（CLI check/dedupe 已开放） |
 | — | `data/README.md` | 依据查证记录、数据源可获取性、合成数据纪律、数值口径纪律 | 已定稿 |
 | — | `data/measurements/observations.{md,json}` | 中文站点实测记录台账（10 条观测：7 verified + 3 pending，含未复现差异登记） | ✅ M1 落库 |
@@ -100,7 +100,7 @@
 | **M2 解析** | 多浏览器书签导入与跨浏览器合并 | 双格式解析往返一致；缺失字段落"未知"不猜测；解析失败显式报错 | ✅ 2026-10-15（UIR 冻结 K11–K18；双解释器 43 passed；变异验证 2 次） |
 | **M3 检测与降级规则** | 中文站点感知失效检测 + 重复合并 | 降级规则库加载生效且缺锚点规则不生效；同输入同规则库版本判定可复现；URL 规范化去重可复现 | ✅ 2026-10-15（锚点硬门正式引擎 + 未启用清单进 check.json；check/dedupe 逐字节确定性测试锁定；双解释器 122 passed；变异验证 4 次） |
 | **M4 基准** | 植入真值对账 + 内置基准 | 三类易错形态均有采样件，基准一键复跑 | ✅ 2026-10-15（tools/bench.py B1–B6 全绿 exit 0；false_dead=0；探活 403-dead 注入→exit 1 常驻测试；退出码三语义锁定；双解释器 131 passed；变异验证 classify 403→dead → bench 红、还原绿） |
-| **M5 交付** | CLI 全子命令 + 本地 HTML 报告 + 一键导回 | CLI 可用、纯本地零上传验证通过、报告与导出完整、导出文件可被浏览器导入 | ⬜ |
+| **M5 交付** | CLI 全子命令 + 本地 HTML 报告 + 一键导回 | CLI 可用、纯本地零上传验证通过、报告与导出完整、导出文件可被浏览器导入 | ✅ 2026-10-15（report/export/run 全子命令落地：报告七节 + 零外链硬断言 + 渲染零判定 + 未探测独立分区；aging 分档取 ruleset tiers_days、null 单列；export 默认不删不改 + 显式开关 + 往返一致；run 编排单一源复用各子命令实现；test_m5 14 项新增） |
 | **M6 发布** | GitHub 公开仓库发布 | DoD 必须包含：**①git tag ②GitHub Release（附产物）③发布留档**三件套；发布到 GitHub **公开**仓库，署名 yuluo554 | ⬜ |
 
 **发布类里程碑 DoD 三件套纪律**：M6 缺任一项（无 tag / 无 Release / 无留档）即为未达成——"代码写完"≠"题做完"。Release 附产物指本地留有 release 产物副本并 sha256 留档可复验。
@@ -110,5 +110,5 @@
 ## 5. 诚实口径尾注
 
 - **CI**：从未实跑（无远端）。一切 CI 结论写"本地等价校验（未接远端，CI 待首推验证）"；本地等价物 = 双解释器（3.8.8 / 3.12.10）全量测试 + 三通路 CLI 冒烟 + workflow 结构守门。缺口显式标注：ubuntu 通道与 GitHub runner 环境差异未验证。
-- **测试计数**：M4 期双通道各 **131 项**（M3 前累计 122 + M4 新增 9：bench 端到端 9——全绿 exit 0 / false_dead 硬门 / 门槛=manifest / loopback 重写 / 探活 403-dead→exit 1 / 未知名 --only→exit 2 / 子集运行 / 空分母 not_enabled / B4 反向样例体量；3.8.8 系统通道 131 passed；3.12.10 venv 通道 131 passed）。M3 期各 122 项、M2 期各 43 项、M1 期各 19 项、M0 期各 12 项。M4 守门变异验证 **1 次**（classify 通用映射 403→dead → bench --only B1 exit 1 红，还原后全绿；探活常驻形态另含 --inject-defect 端到端测试）。计数会随里程碑增长，引用一律"当轮实测"，不抄旧值。
+- **测试计数**：M5 期双通道各 **145 项**（M4 前累计 131 + M5 新增 14：aging 阈值/非法配置/分档与未知单列 3 + 报告零外链/七节/未探测零判定/转义确定/fragment 标记 5 + export 往返转义/过滤语义/CLI 开关与 exit2 3 + report CLI 1 + run 编排 mock 端到端/坏输入不落半成品/两次运行确定 3——详 tests/test_m5.py；3.8.8 系统通道 145 passed；3.12.10 venv 通道 145 passed）。M4 期各 131 项（M3 前累计 122 + M4 新增 9：bench 端到端 9——全绿 exit 0 / false_dead 硬门 / 门槛=manifest / loopback 重写 / 探活 403-dead→exit 1 / 未知名 --only→exit 2 / 子集运行 / 空分母 not_enabled / B4 反向样例体量；3.8.8 系统通道 131 passed；3.12.10 venv 通道 131 passed）。M3 期各 122 项、M2 期各 43 项、M1 期各 19 项、M0 期各 12 项。M4 守门变异验证 **1 次**（classify 通用映射 403→dead → bench --only B1 exit 1 红，还原后全绿；探活常驻形态另含 --inject-defect 端到端测试）。计数会随里程碑增长，引用一律"当轮实测"，不抄旧值。
 - **题面星数/检索数**：均为基准日 2026-10-15 快照，仅作选题论据（01 §5 说明）。

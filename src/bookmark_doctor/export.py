@@ -1,11 +1,13 @@
-"""最小 Netscape HTML 导出（M2，仅为往返一致性测试服务）。
+"""Netscape HTML 导出/导回（M2 最小形态 → M5 完整，plan/04 §4.3）。
 
-完整导回（含 --apply-dedupe / --exclude-dead / 浏览器实测验收）在 M5；
-本模块 M2 只做一件事：UIR 条目 → 合规 Netscape HTML 字节，作为
-"解析 → 导出 → 再解析" 往返一致性测试的 B 面（plan/04 §1.4）。
+M2 起：UIR 条目 → 合规 Netscape HTML 字节，作为"解析 → 导出 → 再解析"
+往返一致性测试的 B 面（plan/04 §1.4）；M5 扩展：
+- ``filter_bookmarks``：按 dedupe/check 既有结论过滤（**只消费判定，不判定**）；
+- 默认**不删不改**（全量导回）；``--apply-dedupe`` / ``--exclude-dead``
+  为显式可选动作（用户确认后才生效）。
 
-转义纪律（plan/04 §4.3 预热）：标题/URL 中 ``& < > "`` 转义；中文原样。
-文件夹分组按 UIR folder 路径重建一级结构即可（往返测试只比较条目，
+转义纪律（plan/04 §4.3）：标题/URL 中 ``& < > "`` 转义；中文原样。
+文件夹分组按 UIR folder 路径重建嵌套结构（往返测试只比较条目，
 不比较树形——merge 已声明跨源不合并目录树）。
 """
 
@@ -69,6 +71,37 @@ def _render_bookmark(bm, indent):
         "%s<DT><A HREF=\"%s\">%s</A>"
         % (indent, _escape_html(bm["url"]), _escape_html(bm["title"] or ""))
     )
+
+
+def filter_bookmarks(bookmarks, dedupe_payload=None, check_payload=None,
+                     apply_dedupe=False, exclude_dead=False):
+    """按既有判定过滤导出集（只消费 check/dedupe 结论，零第二份判定）。
+
+    - ``apply_dedupe=True``：重复组中**非建议保留项**的成员被剔除；
+      未进任何重复组的书签原样保留（"合并"只作用于组内，不波及全量）；
+    - ``exclude_dead=True``：剔除 check 结论为 ``dead`` 的条目；
+    - 两个开关默认 False（默认不删不改，全量导回）。
+    返回过滤后的 UIR 条目列表（原条目 dict 引用，不改写任何字段）。
+    """
+    result = bookmarks
+    if apply_dedupe and dedupe_payload:
+        drop_ids = set()
+        for group in dedupe_payload.get("duplicate_groups", []):
+            keep = group.get("keep", {})
+            keep_id = keep.get("id")
+            for member in group.get("members", []):
+                member_id = member.get("id")
+                if member_id and member_id != keep_id:
+                    drop_ids.add(member_id)
+        result = [bm for bm in result if bm["id"] not in drop_ids]
+    if exclude_dead and check_payload:
+        dead_urls = {
+            item["url"]
+            for item in check_payload.get("results", [])
+            if item.get("verdict") == "dead"
+        }
+        result = [bm for bm in result if bm["url"] not in dead_urls]
+    return result
 
 
 def export_netscape(bookmarks):
