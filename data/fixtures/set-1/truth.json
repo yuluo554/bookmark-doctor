@@ -1,0 +1,176 @@
+{
+  "expect": {
+    "add_date_null": [
+      "eac6d82de8b8"
+    ],
+    "alive": [
+      "3a21b8710930",
+      "6ecdcfbe8c8f",
+      "34a732e3005d",
+      "1a62c2528cb4",
+      "445793e8693d",
+      "789da95f8c4d",
+      "635037b26ffb",
+      "ceafc7b8f99b",
+      "4a47e41db829",
+      "92e0997db488",
+      "8a394d48bbd3",
+      "c0ff4a38a05d",
+      "081a2892e04c"
+    ],
+    "dead": [
+      "c1221e9535bb",
+      "eac6d82de8b8",
+      "9fcd5e1c23ee"
+    ],
+    "duplicate_groups": [
+      {
+        "expect_merge_to": "https://content-page.mock.invalid/posts/1?utm_source=share&utm_medium=link",
+        "members": [
+          "https://content-page.mock.invalid/posts/1?utm_source=share&utm_medium=link",
+          "https://content-page.mock.invalid/posts/1/?share_token=abc4",
+          "https://content-page.mock.invalid/posts/1#daily"
+        ]
+      },
+      {
+        "expect_merge_to": "https://content-page.mock.invalid/posts/2?utm_source=share&utm_medium=link",
+        "members": [
+          "https://content-page.mock.invalid/posts/2?utm_source=share&utm_medium=link",
+          "https://content-page.mock.invalid/posts/2/?share_token=abc3",
+          "https://content-page.mock.invalid/posts/2#ref"
+        ]
+      },
+      {
+        "expect_merge_to": "https://content-page.mock.invalid/posts/3?utm_source=share&utm_medium=link",
+        "members": [
+          "https://content-page.mock.invalid/posts/3?utm_source=share&utm_medium=link",
+          "https://content-page.mock.invalid/posts/3/?share_token=abc5",
+          "https://content-page.mock.invalid/posts/3#daily"
+        ]
+      },
+      {
+        "expect_merge_to": "https://content-page.mock.invalid/posts/4?utm_source=share&utm_medium=link",
+        "members": [
+          "https://content-page.mock.invalid/posts/4?utm_source=share&utm_medium=link",
+          "https://content-page.mock.invalid/posts/4/?share_token=abc1",
+          "https://content-page.mock.invalid/posts/4#reading"
+        ]
+      }
+    ],
+    "review": [
+      "402739300624",
+      "655e725fe749",
+      "d9cf966eefb3",
+      "401a4b5fb5a9",
+      "bc2a0125545f",
+      "c3e9d0190b32",
+      "52356d257ba1",
+      "24c90a991c60",
+      "9ec52b9385e2",
+      "2aa11647ba00",
+      "ecc0769c15d4"
+    ],
+    "review_reason_class": {
+      "anti_crawl": [
+        "402739300624",
+        "655e725fe749",
+        "d9cf966eefb3"
+      ],
+      "dns_failure": [
+        "c3e9d0190b32",
+        "52356d257ba1",
+        "24c90a991c60",
+        "9ec52b9385e2",
+        "2aa11647ba00",
+        "ecc0769c15d4"
+      ],
+      "network_unreachable": [
+        "401a4b5fb5a9",
+        "bc2a0125545f"
+      ]
+    },
+    "scenario_hosts": {
+      "alive-page.mock.invalid": [
+        "3a21b8710930"
+      ],
+      "blocked-403.mock.invalid": [
+        "402739300624"
+      ],
+      "cdn-521.mock.invalid": [
+        "d9cf966eefb3"
+      ],
+      "content-page.mock.invalid": [
+        "6ecdcfbe8c8f",
+        "34a732e3005d",
+        "1a62c2528cb4",
+        "445793e8693d",
+        "789da95f8c4d",
+        "635037b26ffb",
+        "ceafc7b8f99b",
+        "4a47e41db829",
+        "92e0997db488",
+        "8a394d48bbd3",
+        "c0ff4a38a05d",
+        "081a2892e04c"
+      ],
+      "gone-404-b.mock.invalid": [
+        "eac6d82de8b8"
+      ],
+      "gone-404.mock.invalid": [
+        "c1221e9535bb"
+      ],
+      "gone-410.mock.invalid": [
+        "9fcd5e1c23ee"
+      ],
+      "hang.mock.invalid": [
+        "bc2a0125545f"
+      ],
+      "risk-302.mock.invalid": [
+        "655e725fe749"
+      ],
+      "unreachable.mock.invalid": [
+        "401a4b5fb5a9"
+      ]
+    }
+  },
+  "expected_check": {
+    "add_date_null": [
+      "eac6d82de8b8"
+    ],
+    "alive": [
+      "3a21b8710930",
+      "6ecdcfbe8c8f",
+      "34a732e3005d",
+      "1a62c2528cb4",
+      "445793e8693d",
+      "789da95f8c4d",
+      "635037b26ffb",
+      "ceafc7b8f99b",
+      "4a47e41db829",
+      "92e0997db488",
+      "8a394d48bbd3",
+      "c0ff4a38a05d",
+      "081a2892e04c"
+    ],
+    "dead": [
+      "c1221e9535bb",
+      "eac6d82de8b8",
+      "9fcd5e1c23ee"
+    ],
+    "review": [
+      "402739300624",
+      "655e725fe749",
+      "d9cf966eefb3",
+      "401a4b5fb5a9",
+      "bc2a0125545f",
+      "c3e9d0190b32",
+      "52356d257ba1",
+      "24c90a991c60",
+      "9ec52b9385e2",
+      "2aa11647ba00",
+      "ecc0769c15d4"
+    ]
+  },
+  "schema": "bookmark-doctor.truth/1",
+  "seed": 20261015
+}

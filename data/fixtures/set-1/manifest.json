@@ -1,0 +1,65 @@
+{
+  "chrome_epoch_delta_us": 11644473600000000,
+  "counts": {
+    "bookmarks": 27,
+    "folders": 4
+  },
+  "coverage": {
+    "dead_hit": {
+      "covered": 3,
+      "detail": "404/410 应落 dead（B3，唯一通用判死证据）",
+      "hosts": [
+        "gone-404.mock.invalid",
+        "gone-404-b.mock.invalid",
+        "gone-410.mock.invalid"
+      ],
+      "should_cover": 3
+    },
+    "duplicate_merge": {
+      "covered": 4,
+      "detail": "同页多种 URL 形态应合并（B5）",
+      "should_cover": 4
+    },
+    "review_not_dead": {
+      "covered": 3,
+      "detail": "反爬 403/302/521 应落 review，不得误判 dead（B1）",
+      "hosts": [
+        "blocked-403.mock.invalid",
+        "risk-302.mock.invalid",
+        "cdn-521.mock.invalid"
+      ],
+      "should_cover": 3
+    },
+    "sampling_note": "抽样覆盖非穷举：以下为三类易错形态的植入清单与件数（应有/实际覆盖双数登记）",
+    "unreachable_not_dead": {
+      "covered": 2,
+      "detail": "网络不可达/超时应落 review，不得误判 dead（B2）",
+      "hosts": [
+        "unreachable.mock.invalid",
+        "hang.mock.invalid"
+      ],
+      "should_cover": 2
+    }
+  },
+  "files": {
+    "bookmarks.chrome.json": "aebbfb98563cce067f23038582258c397ba4a573fe02a56cc8c0393b8446251d",
+    "bookmarks.netscape.html": "6060c78049a994ca22d1b294e86af1376fb4c3df695b7ef45c5eb91e8f8464fc",
+    "truth.json": "b429ee009e3eedac92095b2cb783059131f87bca89a5ca91ebb88acee390cdde"
+  },
+  "generator": "tools/gen_fixtures.py",
+  "mock_host_scenarios": {
+    "alive-page.mock.invalid": "200",
+    "blocked-403.mock.invalid": "403",
+    "cdn-521.mock.invalid": "521",
+    "content-page.mock.invalid": "200",
+    "gone-404-b.mock.invalid": "404",
+    "gone-404.mock.invalid": "404",
+    "gone-410.mock.invalid": "410",
+    "hang.mock.invalid": "hang",
+    "risk-302.mock.invalid": "302",
+    "unreachable.mock.invalid": "unreachable"
+  },
+  "schema": "bookmark-doctor.manifest/1",
+  "seed": 20261015,
+  "set_id": "set-1"
+}

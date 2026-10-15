@@ -9,4 +9,4 @@ M1 起收录程序化生成的**合成书签集**（Netscape HTML + Chrome JSON 
 
 数据纪律总纲：见 `data/README.md §3`（合成数据纪律）。
 
-状态：⬜ 待 M1 产出。
+状态：✅ M1 已产出（`set-1/`：双格式 27 条 + truth.json + manifest.json；三类易错形态覆盖件数登记；`--check` 位级一致双解释器实测通过）。

@@ -1,0 +1,94 @@
+{
+  "aging": {
+    "tiers_days": [
+      365,
+      730,
+      1095
+    ]
+  },
+  "degrade_rules": [
+    {
+      "anchor": {
+        "check_status": "verified",
+        "observation_id": "OBS-20261015-zhihu-question-403"
+      },
+      "disposition": "review",
+      "id": "R-ZHIHU-403",
+      "match": {
+        "host_suffix": "zhihu.com",
+        "http_status": 403
+      },
+      "note": "非浏览器请求返回 403（bot 拦截）；浏览器可正常打开，反爬非失效",
+      "reason": "http_403_botguard"
+    },
+    {
+      "anchor": {
+        "check_status": "verified",
+        "observation_id": "OBS-20261015-zhihu-home-302"
+      },
+      "disposition": "review",
+      "id": "R-ZHIHU-302",
+      "match": {
+        "host_suffix": "zhihu.com",
+        "http_status": 302
+      },
+      "note": "非登录态访问 302 → /signin 登录跳转；跟随终态为登录页非内容页，不判失效（首跳/终态匹配语义 M3 冻结）",
+      "reason": "http_302_login_redirect"
+    },
+    {
+      "anchor": {
+        "check_status": "verified",
+        "observation_id": "OBS-20261015-weibo-home-302-visitor"
+      },
+      "disposition": "review",
+      "id": "R-WEIBO-302",
+      "match": {
+        "host_suffix": "weibo.com",
+        "http_status": 302
+      },
+      "note": "非登录态访问 302 → passport visitor 风控跳转链；跟随终态为访客页非原页内容，不判失效（跳转链含动态 _rand，运行时以实际链为准）",
+      "reason": "http_302_visitor_risk"
+    },
+    {
+      "anchor": {
+        "check_status": "verified",
+        "observation_id": "OBS-20261015-csdn-blog-521"
+      },
+      "disposition": "review",
+      "id": "R-CSDN-521",
+      "match": {
+        "host_suffix": "csdn.net",
+        "http_status": 521
+      },
+      "note": "非浏览器请求返回 521（CDN 反爬拦截）；浏览器可正常打开，非失效",
+      "reason": "cdn_blocked"
+    }
+  ],
+  "probe": {
+    "delay_s": 0.5,
+    "redirect_max": 5,
+    "retry_max": 1,
+    "timeout_s": 10,
+    "user_agent": "BookmarkDoctor-Observation/0.1 (single-shot status check; +local measurement)"
+  },
+  "revision": 1,
+  "schema": "bookmark-doctor.ruleset/1",
+  "similarity": {
+    "threshold": 0.9
+  },
+  "tracked_query_params": {
+    "exact": [
+      "share_token",
+      "spm",
+      "scm",
+      "fbclid",
+      "gclid",
+      "igshid"
+    ],
+    "prefixes": [
+      "utm_",
+      "share_"
+    ]
+  },
+  "version": "f846f1cb820d"
+}
