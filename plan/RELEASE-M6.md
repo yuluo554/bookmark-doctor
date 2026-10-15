@@ -48,7 +48,7 @@
 - 附件状态：source.zip（458623 字节）/ tar.gz（64831 字节）均 uploaded；
 - **真下载复核**：`gh release download v0.1.0` → sha256 与 §3 留档**逐位一致**（两文件）；
 - 冻结态自检：下载的 zip 解包 → CLI --version 0.1.0 + test_m5/test_bench **23 passed** + gen_fixtures --check 位级一致；
-- 可见性：当前 **private**；三清前提已满足（历史三扫 0 / 坏 blob 修净 / 失败 run 无）——切 public 待用户确认。
+- 可见性：**已切 public**（用户确认后执行，详见 §7）。
 
 ## 6. 发布后复核（已执行，2026-10-15）
 

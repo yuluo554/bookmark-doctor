@@ -88,8 +88,8 @@
 | 长期未访问画像 + 一键导回 | 书签添加时间 + Netscape 导出 | 模块④ | 导出文件可被浏览器实际导入 | ✅ |
 | 零上传（纯本地） | 无任何上传路径 | CLI + 报告 | 无出网代码路径审查 / 无远端写入 | ✅ 设计承诺（M5 产物级复核） |
 | 运行时零第三方依赖 | pyproject 无运行时依赖声明 | `--selftest` runtime-deps 检查 | venv 冒烟实测"零第三方运行时依赖"（M0 已验） | ✅ |
-| 开源空白论证 | GitHub 检索式 `跨浏览器 书签 合并 去重` → 0、`浏览器 书签 导航站 本地` → 0，基准日 2026-10-15 | 题面 1.2 节 + 本台账 | 可按同检索式复跑检索 | ⬜ 软论据 |
-| CI 三矩阵可运行 | `.github/workflows/ci.yml` + workflow 解析守门测试 | CI 配置 | **本地等价校验（未接远端，CI 待首推验证）**：YAML 可解析、job/step 结构断言、fetch-depth=0 断言、双解释器测试全绿 | ⬜ 待首推验证 |
+| 开源空白论证 | GitHub 检索式 `跨浏览器 书签 合并 去重` → 0、`浏览器 书签 导航站 本地` → 0，基准日 2026-10-15 | 题面 1.2 节 + 本台账 | 可按同检索式复跑检索 | ✅ 软论据（基准日口径不变） |
+| CI 三矩阵可运行 | `.github/workflows/ci.yml` + workflow 解析守门测试 | CI 配置 | **远端实测**：push 触发三矩阵（windows 3.8 / windows 3.12 / ubuntu 3.12）全 success，零失败 run（取值：`gh api repos/yuluo554/bookmark-doctor/actions/runs`，快照 2026-10-15） | ✅ 已首推验证 |
 
 ## 4. 里程碑状态
 
@@ -109,6 +109,6 @@
 
 ## 5. 诚实口径尾注
 
-- **CI**：从未实跑（无远端）。一切 CI 结论写"本地等价校验（未接远端，CI 待首推验证）"；本地等价物 = 双解释器（3.8.8 / 3.12.10）全量测试 + 三通路 CLI 冒烟 + workflow 结构守门。缺口显式标注：ubuntu 通道与 GitHub runner 环境差异未验证。
+- **CI**：M6 起**已实跑**（远端 https://github.com/yuluo554/bookmark-doctor ，push 与 tag push 均触发；三矩阵 windows 3.8 / windows 3.12 / ubuntu 3.12 全 success，收尾快照零失败 run）。M6 前（无远端期间）的 CI 结论为"本地等价校验"，本地等价物 = 双解释器（3.8.8 / 3.12.10）全量测试 + 三通路 CLI 冒烟 + workflow 结构守门；该历史缺口（ubuntu 通道与 GitHub runner 环境差异）已由 M6 首推实测闭合。
 - **测试计数**：M5 期双通道各 **145 项**（M4 前累计 131 + M5 新增 14：aging 阈值/非法配置/分档与未知单列 3 + 报告零外链/七节/未探测零判定/转义确定/fragment 标记 5 + export 往返转义/过滤语义/CLI 开关与 exit2 3 + report CLI 1 + run 编排 mock 端到端/坏输入不落半成品/两次运行确定 3——详 tests/test_m5.py；3.8.8 系统通道 145 passed；3.12.10 venv 通道 145 passed）。M4 期各 131 项（M3 前累计 122 + M4 新增 9：bench 端到端 9——全绿 exit 0 / false_dead 硬门 / 门槛=manifest / loopback 重写 / 探活 403-dead→exit 1 / 未知名 --only→exit 2 / 子集运行 / 空分母 not_enabled / B4 反向样例体量；3.8.8 系统通道 131 passed；3.12.10 venv 通道 131 passed）。M3 期各 122 项、M2 期各 43 项、M1 期各 19 项、M0 期各 12 项。M4 守门变异验证 **1 次**（classify 通用映射 403→dead → bench --only B1 exit 1 红，还原后全绿；探活常驻形态另含 --inject-defect 端到端测试）。计数会随里程碑增长，引用一律"当轮实测"，不抄旧值。
 - **题面星数/检索数**：均为基准日 2026-10-15 快照，仅作选题论据（01 §5 说明）。
