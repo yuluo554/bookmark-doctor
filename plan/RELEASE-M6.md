@@ -118,7 +118,7 @@
 | 重打 tag | `v0.1.0`（annotated，打在含本 §9 的审计修复终态提交；指向提交 = `git rev-parse v0.1.0^{commit}`，为 tag 树内可复核值，避免 sha 自指循环） |
 | `bookmark-doctor-0.1.0-source.zip` | sha256 `cd243d4a48d6dcbae5aeb13dd1c5c34014278943270c500878a68ce5c4beb369`（498579 字节；两次打包逐字节一致） |
 | `bookmark_doctor-0.1.0.tar.gz` | sha256 `d7e03a3c583adb59be58b512986a6d8a60690e23830db251b98ae4c75f6734d6`（71447 字节） |
-| CI（审计后重推） | main push run `38898174315`（修复提交 `61832dd`）三矩阵全 success；tag push run `38902046592`（`head_branch=v0.1.0`，`head_sha=f26eb79`）三矩阵全 success |
+| CI（审计后重推） | main push run `38898174315`（修复提交 `61832dd`）三矩阵全 success；tag push run 实测**会**触发且全 success（取值方式：`gh run list --repo yuluo554/bookmark-doctor --branch v0.1.0`；tag 重打后 run id 会变，故不抄裸数字） |
 | 发布物本体复核 | `gh release download v0.1.0` → 两附件 sha256 与上表逐位一致（真下载实测）→ Python `zipfile.extractall` 解包（中文文件名正常）→ CLI `--version` 0.1.0 + `test_m5`+`test_bench` **29 passed** |
 
 **便携 zip 两处修正（相对首版）**：① 文件名 UTF-8 标志——首版 zip 的 CJK 路径被误编码为八进制转义（解压后 `plan/00-README\346\200\273...`），本版显式置 `flag_bits |= 0x800`，解压后中文路径正常；② **排除 `plan/RELEASE-M6.md`**——该文件若随包发出则其内"本包 sha256"自指（写死后重打包哈希再变，永不自洽），故从归档排除；hash 记录在仓库内该文件与 GitHub Release 说明（均在归档外），保证自洽。
