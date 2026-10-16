@@ -1,6 +1,7 @@
 # HANDOFF-M7 — 完结快照（项目发布完成）
 
 > 上一棒：M6 发布（2026-10-15 完成，本对话）。本快照为**完结态**：里程碑计划 M0–M6 全部达成，无下一棒待办。
+> **2026-10-16 审计修复**：独立审计发现 12 类缺陷（含招牌功能空转——302 降级规则永不命中），已全部修复、重跑双基线、重打 tag 并重传 Release 附件。详见 `plan/RELEASE-M6.md` §9。
 > 续接方式（如需继续演进）：直接读本文件 + `plan/RELEASE-M6.md`；库内一律相对路径。
 
 ## 一、终态与证据
@@ -8,13 +9,13 @@
 | 项 | 值 / 证据 |
 |---|---|
 | 公开仓库 | https://github.com/yuluo554/bookmark-doctor （**PUBLIC**，署名 yuluo554） |
-| tag | `v0.1.0`（annotated，打在 `a7213be`） |
+| tag | `v0.1.0`（annotated，**2026-10-16 审计修复后重打**，指向修复终态提交） |
 | Release | https://github.com/yuluo554/bookmark-doctor/releases/tag/v0.1.0 |
-| 附件（ASCII 名 + sha256） | `bookmark-doctor-0.1.0-source.zip` → `c1bca065d7795ecbd50e99db47a649f36f9e29d387dc0d3c023da07e6a689fc6`；`bookmark_doctor-0.1.0.tar.gz` → `dff5badaede292589d70b4f807d17157c2bcc8de6f3faa113df1a0ef1e5e0339` |
-| CI | 全绿：截至 2026-10-15 收尾快照 `gh api repos/yuluo554/bookmark-doctor/actions/runs` 全部 success（零失败 run）；矩阵 windows 3.8 / windows 3.12 / ubuntu 3.12；tag push 触发 run 实测**会**触发 |
-| 测试基线 | 145 passed（3.8.8 干净 venv 与发布物本体各复跑一次）；bench B1–B6 exit 0；数据生成器 `--check` 双绿 |
-| 发布留档 | `plan/RELEASE-M6.md`（脱敏四步 / 干净环境 / 产物 / 建仓 CI / tag Release / 发布后复核 / 可见性 / 终态 八节） |
-| 脱敏 | 四步全过；提交邮箱全史改写 GitHub noreply（`282769740+yuluo554@users.noreply.github.com`），旧对象 gc 清净，全对象扫描 0 残留 |
+| 附件（ASCII 名 + sha256） | 见 `plan/RELEASE-M6.md` §9（审计后重传） |
+| CI | 全绿：矩阵 windows 3.8 / windows 3.12 / ubuntu 3.12；审计后重推复绿（run id 见 RELEASE-M6 §9） |
+| 测试基线 | **159 passed**（3.8.8 与 3.12.10 双通道，审计修复后实测）；bench B1–B6 exit 0（false_dead=0 / false_alive=0）；数据生成器 `--check` 双绿 |
+| 发布留档 | `plan/RELEASE-M6.md`（脱敏四步 / 干净环境 / 产物 / 建仓 CI / tag Release / 发布后复核 / 可见性 / 终态 / **审计修复再发布** 九节） |
+| 脱敏 | 四步全过；提交邮箱全史改写 GitHub noreply，旧对象 gc 清净，全对象扫描 0 残留 |
 | topics | `bookmarks, chinese-web, cli, dead-link-checker, open-source, python, url-dedupe` |
 
 ## 二、里程碑总表（全达成）
@@ -25,9 +26,9 @@
 | M1 数据先行 | ✅ | `data/measurements/` 实测台账 + `data/rules/ruleset.json` v1 + `data/fixtures/set-1/`（27 条真值）+ 数据守门 |
 | M2 解析 | ✅ | 双解析器（Netscape 状态机 + Chrome JSON）+ UIR 冻结 K11–K19 + CLI `import` |
 | M3 检测与去重 | ✅ | `probe.py` + `classify.py` + `normalize.py` + `dedupe.py` + `ruleset.py` 锚点硬门 + CLI `check`/`dedupe` |
-| M4 基准 | ✅ | `tools/bench.py` B1–B6 + false_dead=0 硬门 + 探活可证伪 + 退出码三语义 |
-| M5 交付 | ✅ | CLI `report`/`export`/`run` + 七节单文件报告（零外链）+ 一键导回 |
-| M6 发布 | ✅ | 公开仓库 + tag + Release（附产物）+ RELEASE-M6 留档 |
+| M4 基准 | ✅ | `tools/bench.py` B1–B6 + false_dead=0/false_alive=0 硬门 + 探活可证伪（403-dead / 302-first-hop-ignored）+ 退出码三语义；2026-10-16 审计加固（真实跳转链 + 样本真经规则库） |
+| M5 交付 | ✅ | CLI `report`/`export`/`run` + 七节单文件报告（零外链）+ 一键导回（导出与源冻结文件字节级一致 + 常驻测试） |
+| M6 发布 | ✅ | 公开仓库 + tag（审计后重打）+ Release（附产物重传）+ RELEASE-M6 留档 |
 
 ## 三、交付物对照（题面 §3 九项）
 
