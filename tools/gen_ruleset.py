@@ -53,7 +53,7 @@ DEGRADE_RULES = [
         "match": {"host_suffix": "zhihu.com", "http_status": 302},
         "disposition": "review",
         "reason": "http_302_login_redirect",
-        "note": "非登录态访问 302 → /signin 登录跳转；跟随终态为登录页非内容页，不判失效（首跳/终态匹配语义 M3 冻结）",
+        "note": "非登录态访问 302 → /signin 登录跳转；跟随终态为登录页非内容页，不判失效（首跳或终态任一命中即视为风控，M3 冻结）",
         "anchor": {"observation_id": "OBS-20261015-zhihu-home-302", "check_status": "verified"},
     },
     {
@@ -61,7 +61,7 @@ DEGRADE_RULES = [
         "match": {"host_suffix": "weibo.com", "http_status": 302},
         "disposition": "review",
         "reason": "http_302_visitor_risk",
-        "note": "非登录态访问 302 → passport visitor 风控跳转链；跟随终态为访客页非原页内容，不判失效（跳转链含动态 _rand，运行时以实际链为准）",
+        "note": "非登录态访问 302 → passport visitor 风控跳转链；跟随终态为访客页非原页内容，不判失效（首跳或终态任一命中即视为风控；跳转链含动态 _rand，运行时以实际链为准）",
         "anchor": {"observation_id": "OBS-20261015-weibo-home-302-visitor", "check_status": "verified"},
     },
     {

@@ -20,6 +20,14 @@
       "detail": "同页多种 URL 形态应合并（B5）",
       "should_cover": 4
     },
+    "review_not_alive_302": {
+      "covered": 1,
+      "detail": "反爬 302（风控跳转终态为登录/访客页 200）不得误判 alive（B1 false_alive 门）",
+      "hosts": [
+        "risk-302.mock.invalid"
+      ],
+      "should_cover": 1
+    },
     "review_not_dead": {
       "covered": 3,
       "detail": "反爬 403/302/521 应落 review，不得误判 dead（B1）",
@@ -30,7 +38,7 @@
       ],
       "should_cover": 3
     },
-    "sampling_note": "抽样覆盖非穷举：以下为三类易错形态的植入清单与件数（应有/实际覆盖双数登记）",
+    "sampling_note": "抽样覆盖非穷举：以下为四类易错形态的植入清单与件数（应有/实际覆盖双数登记）",
     "unreachable_not_dead": {
       "covered": 2,
       "detail": "网络不可达/超时应落 review，不得误判 dead（B2）",

@@ -2,7 +2,8 @@
 
 按路径脚本化响应（plan/05 §4.3）：
 - ``/status/403``、``/status/521`` … → 对应状态码（200/301/302/403/404/405/410/521；
-  405 供 HEAD→GET 降级语义场景——M3 补全，M3 前不在集内）；
+  405 供 HEAD→GET 降级语义场景——M3 补全，M3 前不在集内）；3xx 场景**发 Location 头**
+  跳到 ``/final/200``（真实跳转链，首跳 3xx → 终态 200）；
 - ``/redirect/302`` → 302 跳到 ``/final/200``（模拟风控跳转链）；
 - ``/redirect/301`` → 301 跳到 ``/final/200``；
 - ``/redirect/loop`` → 302 自环（跳转成环场景）；
@@ -55,7 +56,10 @@ class MockHandler(BaseHTTPRequestHandler):
         if len(parts) == 2 and parts[0] == "status" and parts[1].isdigit():
             code = int(parts[1])
             if code in _STATUS_CODES:
-                self._respond(code)
+                # 3xx 场景发 Location 头 → 真实跳转链（首跳 3xx → 终态 200），
+                # 与 tools/bench.py mock 同语义（风控 302 场景复现前提）
+                headers = {"Location": "/final/200"} if code in (301, 302) else None
+                self._respond(code, headers)
                 return
             self._respond(404)
             return

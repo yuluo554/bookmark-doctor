@@ -57,11 +57,25 @@ if str(REPO_ROOT / "src") not in sys.path:
 
 FIXTURES_DIR = REPO_ROOT / "data" / "fixtures" / "set-1"
 LOOPBACK_HOST = "127.0.0.1"
+# mock 站点对 3xx 场景发出的 Location 跳转码（形成真实跳转链：首跳 3xx → 终态 200）
+_MOCK_REDIRECT_CODES = (301, 302, 303, 307, 308)
 # manifest 覆盖节键名（门槛是数据非代码：读取自 manifest，不在本文件内联门槛值）
 COVERAGE_KEYS = ("review_not_dead", "unreachable_not_dead", "dead_hit", "duplicate_merge")
 SUITE_IDS = ("B1", "B2", "B3", "B4", "B5", "B6")
 # 探活缺陷清单（--inject-defect 白名单；未知名 exit 2）
-DEFECTS = ("403-dead",)
+DEFECTS = ("403-dead", "302-first-hop-ignored")
+# 样本驱动的 mock 主机 → 所模拟的**仓库正本规则 id**（"规则库零命中"修复）：
+# 合成集只能用保留域名（零真实站点 URL），故 403/302/521 样本的 mock 主机名
+# 与 ruleset 里的真实后缀（zhihu.com / weibo.com / csdn.net）不可能字面相同。
+# 基准在此把**真实规则**翻译到 mock 主机上（别名复制真实规则的 host_suffix
+# 之外的语义：http_status / disposition / reason / id）——样本因此真经规则引擎
+# 判定；若该规则被删/被改（如 302 规则消失），别名随之消失，样本落通用映射
+# （302→200 链的终态 200 判 alive）→ B1 false_alive ≥ 1 → 基准变红。
+MOCK_RULE_ALIASES = {
+    "blocked-403.mock.invalid": "R-ZHIHU-403",
+    "risk-302.mock.invalid": "R-WEIBO-302",
+    "cdn-521.mock.invalid": "R-CSDN-521",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +90,10 @@ class _MockHandler(BaseHTTPRequestHandler):
     场景码可能相同，如 200 场景的 alive-page 与 content-page；路径必须
     保留主机可区分性，否则去重对账失真）：
     - ``/b<i>/status/<code>`` → 对应状态码（i = 主机命名空间序号）；
+    - 3xx 场景（301/302/303/307/308）**发 Location 头**跳到同目录
+      ``.../status/200``（登录/访客页形态）——形成**真实跳转链**：首跳 3xx、
+      终态 200。这是"风控 302 → 登录页"招牌场景的复现前提（缺陷 2：mock
+      从不发 Location 时该场景不可复现）；
     - ``/b<i>/hang`` → 挂起（读取超时场景）。
     """
 
@@ -89,13 +107,19 @@ class _MockHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def do_GET(self):
+    def _route(self):
         path = self.path.split("?", 1)[0].strip("/")
         parts = path.split("/") if path else []
         # 原路径语义段重写：/b<i>/<orig>/status/<code>（去重键尾段保留原页 ID）
         # 或 /b<i>/<orig>/hang（挂起）。场景段取倒数第二段。
         if len(parts) >= 3 and parts[-2] == "status" and parts[-1].isdigit():
-            self._respond(int(parts[-1]))
+            code = int(parts[-1])
+            headers = None
+            if code in _MOCK_REDIRECT_CODES:
+                # 3xx → 同目录 status/200（登录/访客页终态）——真实跳转链
+                target = "/".join(parts[:-1] + ["200"])
+                headers = {"Location": "/" + target}
+            self._respond(code, headers)
             return
         if len(parts) >= 3 and parts[-1] == "hang":
             try:
@@ -105,6 +129,9 @@ class _MockHandler(BaseHTTPRequestHandler):
                 pass
             return
         self._respond(404)
+
+    def do_GET(self):
+        self._route()
 
     do_HEAD = do_GET
 
@@ -240,20 +267,39 @@ class BenchConfigError(Exception):
 # ---------------------------------------------------------------------------
 
 
-def apply_defect(generic_fn, defect):
-    """注入探活缺陷 → 新的通用映射函数（原函数不被修改）。
+def apply_defect(defect):
+    """注入探活缺陷 → {"generic": generic_fn, "match": match_fn, "post": post_fn}。
 
-    ``403-dead``：把 403 通用映射改成 dead——B1 必须报未达标（false_dead 硬门红）。
+    - ``403-dead``：403 判死（无论经通用映射还是经规则）——B1 必须报未达标
+      （false_dead 硬门红）。post 钩子在最终结果上把"观测到 403 的 review 判定"
+      改判 dead（别名规则已让 403 样本经规则命中，仅毒化通用映射不再够）；
+    - ``302-first-hop-ignored``：规则匹配**忽略首跳状态**（模拟修复前"只读终态"
+      回归）——风控 302 → 登录/访客页 200 链不再命中规则，落通用映射终态 200
+      判 alive，B1 必须报未达标（false_alive 门红）。
     """
+    from bookmark_doctor.classify import generic_verdict, match_rule
+
+    if defect is None:
+        return {"generic": generic_verdict, "match": match_rule, "post": None}
     if defect == "403-dead":
 
-        def _poisoned(probe_record):
-            verdict, reason = generic_fn(probe_record)
-            if reason == "http_4xx_blocked" and probe_record.get("http_status") == 403:
-                return "dead", reason
-            return verdict, reason
+        def _post(outcome, record):
+            observed = {record.get("http_status"), record.get("first_hop_status")}
+            if 403 in observed and outcome.get("verdict") == "review":
+                poisoned = dict(outcome)
+                poisoned["verdict"] = "dead"
+                return poisoned
+            return outcome
 
-        return _poisoned
+        return {"generic": generic_verdict, "match": match_rule, "post": _post}
+    if defect == "302-first-hop-ignored":
+
+        def _poisoned_match(probe_record, rule):
+            stripped = dict(probe_record)
+            stripped["first_hop_status"] = None  # 只读终态（回归到修复前语义）
+            return match_rule(stripped, rule)
+
+        return {"generic": generic_verdict, "match": _poisoned_match, "post": None}
     raise BenchConfigError("未知探活缺陷: %r（可用: %s）" % (defect, ", ".join(DEFECTS)))
 
 
@@ -287,6 +333,38 @@ def load_ruleset():
     return load_effective_rules(REPO_ROOT, None)
 
 
+def build_mock_alias_rules(effective_rules):
+    """真实规则 → mock 主机别名规则（样本驱动"真经规则库"的桥接）。
+
+    合成集 URL 只用保留域名（零真实站点 URL，data/README §3），mock 主机名
+    （blocked-403.mock.invalid 等）与 ruleset 真实后缀（zhihu.com / weibo.com /
+    csdn.net）不可能字面相同——若样本只吃仓库正本规则，则**规则库对样本零命中**，
+    B1 通过纯靠通用映射（"基准未验证规则库"假象，缺陷 2）。
+
+    本函数按 ``MOCK_RULE_ALIASES`` 把每条**真实生效规则**翻译为挂在 mock 主机
+    上的别名规则：只改 ``host_suffix``，``http_status / disposition / reason / id``
+    一律沿用真实规则（规则语义零改写）。真实规则不存在（被删/被改/未生效）→
+    不生成别名 → 样本落通用映射 → 风控 302→200 链判 alive → B1 false_alive 红。
+    """
+    by_id = {rule["id"]: rule for rule in effective_rules}
+    alias_rules = []
+    for host, rule_id in sorted(MOCK_RULE_ALIASES.items()):
+        real = by_id.get(rule_id)
+        if real is None:
+            continue  # 真实规则不生效 → 该 mock 主机无规则可依（基准将暴露）
+        match = dict(real.get("match") or {})
+        match["host_suffix"] = host
+        alias_rules.append(
+            {
+                "id": real["id"],
+                "match": match,
+                "disposition": real.get("disposition"),
+                "reason": real.get("reason"),
+            }
+        )
+    return alias_rules
+
+
 def build_uir(chrome_obj, netscape_text):
     """真喂解析引擎（不走 import CLI——bench 直接消费解析器，同契约）。"""
     from bookmark_doctor.model import build_bookmarks, load_chrome_epoch_delta
@@ -300,37 +378,52 @@ def build_uir(chrome_obj, netscape_text):
     return bookmarks
 
 
-def run_probe_and_classify(bookmarks, ruleset, effective_rules, host_map, probe_cfg_overrides=None):
+def run_probe_and_classify(bookmarks, ruleset, effective_rules, host_map,
+                           probe_cfg_overrides=None, alias_rules=None):
     """重写 URL → loopback 断言 → 真喂探测 + 分类（复刻 CLI check 流水线语义）。
 
     返回 (check_payload, results_by_url)。分类函数可被探活缺陷包装
-    （``classify_fn`` 经 ``--inject-defect`` 换入）。
+    （``classify_fn`` / ``match_fn`` 经 ``--inject-defect`` 换入）。
+    ``alias_rules``：mock 主机别名规则（样本驱动"真经规则库"桥接，见
+    ``build_mock_alias_rules``）——样本按"别名规则 ∪ 仓库正本规则"判定。
     """
-    from bookmark_doctor.classify import classify, generic_verdict
+    from bookmark_doctor.classify import classify
     from bookmark_doctor.probe import probe_bookmarks
 
     probe_cfg = dict(ruleset["probe"])
     if probe_cfg_overrides:
         probe_cfg.update(probe_cfg_overrides)
 
-    id_by_url = {}
     urls = []
     for bm in bookmarks:
-        rewritten = rewrite_url(bm["url"], host_map)
-        id_by_url.setdefault(rewritten, []).append(bm["id"])
-        urls.append(rewritten)
+        urls.append(rewrite_url(bm["url"], host_map))
     assert_all_loopback(urls)
 
-    classify_fn = classify
-    if bench_state.defect:
-        poisoned_generic = apply_defect(generic_verdict, bench_state.defect)
+    # 样本判定规则集 = mock 别名规则（真经规则库语义）× 仓库正本规则
+    rules_for_samples = list(alias_rules or []) + list(effective_rules)
 
-        def classify_fn(record, rules):  # noqa: F811 — 探活包装（缺陷注入路径）
-            hits = [rule for rule in rules if _rule_matches(record, rule)]
+    match_fn = _rule_matches
+    generic_fn = None
+    post_fn = None
+    if bench_state.defect:
+        defect_fns = apply_defect(bench_state.defect)
+        match_fn = defect_fns["match"]
+        generic_fn = defect_fns["generic"]
+        post_fn = defect_fns["post"]
+
+    def classify_fn(record, rules):
+        if bench_state.defect:
+            hits = [rule for rule in rules if match_fn(record, rule)]
             if hits:
-                return classify(record, rules)
-            verdict, reason = poisoned_generic(record)
-            return {"verdict": verdict, "reason": reason, "rule_id": None, "conflict": None}
+                outcome = classify(record, rules, match_fn=match_fn)
+            else:
+                verdict, reason = generic_fn(record)
+                outcome = {"verdict": verdict, "reason": reason,
+                           "rule_id": None, "conflict": None}
+            if post_fn is not None:
+                outcome = post_fn(outcome, record)
+            return outcome
+        return classify(record, rules)
 
     # 唯一目标探测：重写后同 URL（跨来源重复收藏）只探一次，结果扇回
     # 全部同名 URL 书签——语义不变（同 URL 同响应），省去重复挂起/不可达
@@ -338,17 +431,25 @@ def run_probe_and_classify(bookmarks, ruleset, effective_rules, host_map, probe_
     unique_urls = sorted(set(urls))
     unique_records = probe_bookmarks(unique_urls, probe_cfg)
     record_by_url = {r["url"]: r for r in unique_records}
-    records = [record_by_url[url] for url in urls]
+
     results = []
-    for record in records:
-        outcome = classify_fn(record, effective_rules)
+    for bm in bookmarks:
+        rewritten = rewrite_url(bm["url"], host_map)
+        record = record_by_url[rewritten]
+        # 规则匹配用**原文 URL 的 host**（别名规则 host_suffix = mock 主机名）；
+        # 探测记录其余字段取自 loopback 重写目标的真实响应。二者分离是基准
+        # 桥接的必须：重写把 host 换成 127.0.0.1 后，规则后缀匹配会失效
+        # （"样本真经规则库"的前提就是原文主机可见）。
+        class_record = dict(record, url=bm["url"])
+        outcome = classify_fn(class_record, rules_for_samples)
         results.append(
             {
-                "id": id_by_url[record["url"]][0],
+                "id": bm["id"],
                 "url": record["url"],
                 "final_url": record["final_url"],
                 "redirect_chain": record["redirect_chain"],
                 "http_status": record["http_status"],
+                "first_hop_status": record["first_hop_status"],
                 "error_class": record["error_class"],
                 "verdict": outcome["verdict"],
                 "reason": outcome["reason"],
@@ -422,10 +523,41 @@ def _threshold_from_manifest(manifest, key):
 
 
 def suite_b1_anti_crawl(truth_obj, results_by_id, manifest):
-    """B1：反爬类（403/302/521）应 review，不得 dead。门槛 = manifest review_not_dead。"""
+    """B1：反爬类（403/302/521）应 review，不得 dead、不得 alive。
+
+    门槛 = manifest review_not_dead；额外硬门：
+    - ``false_alive == 0``——"风控 302 → 登录/访客页 200"链被判 alive 即招牌
+      功能空转（缺陷 2 探活面）；
+    - 第四类覆盖（``review_not_alive_302``）：302 反爬子集必须真被覆盖且全落
+      review（manifest 声明 should_cover，数据非代码）。
+    """
     entry = _threshold_from_manifest(manifest, "review_not_dead")
     ids = set(truth_obj["expect"]["review_reason_class"]["anti_crawl"])
-    return _review_not_dead_suite("B1", ids, results_by_id, entry)
+    result = _review_not_dead_suite("B1", ids, results_by_id, entry, gate_false_alive=True)
+
+    # 第四类覆盖：302 反爬子集（anti_crawl ∩ risk-302 主机样本）单独对账
+    risk_entry = _threshold_from_manifest(manifest, "review_not_alive_302")
+    risk_host_ids = set()
+    scenario_hosts = truth_obj["expect"].get("scenario_hosts", {})
+    for host, host_ids in scenario_hosts.items():
+        if host in risk_entry.get("hosts", []):
+            risk_host_ids |= set(host_ids)
+    risk_ids = ids & risk_host_ids
+    risk_hits = sum(1 for i in risk_ids if results_by_id.get(i, {}).get("verdict") == "review")
+    risk_alive = sum(1 for i in risk_ids if results_by_id.get(i, {}).get("verdict") == "alive")
+    result.metrics["cover_302"] = {
+        "total": len(risk_ids),
+        "hits": risk_hits,
+        "false_alive": risk_alive,
+        "should_cover": risk_entry["should_cover"],
+    }
+    if len(risk_ids) < risk_entry["should_cover"] or risk_hits < risk_entry["should_cover"]:
+        result.passed = False
+        result.detail = (
+            "第四类覆盖不足：302 反爬子集 %d 件（应 ≥%d），落 review %d 件"
+            % (len(risk_ids), risk_entry["should_cover"], risk_hits)
+        )
+    return result
 
 
 def suite_b2_unreachable(truth_obj, results_by_id, manifest):
@@ -436,21 +568,25 @@ def suite_b2_unreachable(truth_obj, results_by_id, manifest):
     return _review_not_dead_suite("B2", ids, results_by_id, entry)
 
 
-def _review_not_dead_suite(suite_id, ids, results_by_id, entry):
+def _review_not_dead_suite(suite_id, ids, results_by_id, entry, gate_false_alive=False):
     if not ids:
-        return SuiteResult(suite_id, {"hits": 0, "false_dead": 0, "rate": None},
+        return SuiteResult(suite_id, {"hits": 0, "false_dead": 0, "false_alive": 0, "rate": None},
                            passed=False, not_enabled=True,
                            detail="空分母：真值集无该类样本（not_enabled，不冒充通过）")
     hits = sum(1 for i in ids if results_by_id.get(i, {}).get("verdict") == "review")
     false_dead = sum(1 for i in ids if results_by_id.get(i, {}).get("verdict") == "dead")
+    false_alive = sum(1 for i in ids if results_by_id.get(i, {}).get("verdict") == "alive")
     metrics = {
         "total": len(ids),
         "hits": hits,
         "false_dead": false_dead,
+        "false_alive": false_alive,
         "rate": _rate_hits(hits, len(ids)),
         "threshold": entry["should_cover"],
     }
     passed = false_dead == 0 and hits >= entry["should_cover"]
+    if gate_false_alive:
+        passed = passed and false_alive == 0
     return SuiteResult(suite_id, metrics, passed=passed)
 
 
@@ -704,12 +840,14 @@ bench_state = _BenchState()
 # ---------------------------------------------------------------------------
 
 
-def suite_b6_consistency(bookmarks, ruleset, effective_rules, host_map):
+def suite_b6_consistency(bookmarks, ruleset, effective_rules, host_map, alias_rules=None):
     """B6：同一输入连跑两次探测+分类流水线 → 结果载荷逐字节一致。"""
     from bookmark_doctor.serialize import serialize_payload
 
-    payload1, _ = run_probe_and_classify(bookmarks, ruleset, effective_rules, host_map)
-    payload2, _ = run_probe_and_classify(bookmarks, ruleset, effective_rules, host_map)
+    payload1, _ = run_probe_and_classify(
+        bookmarks, ruleset, effective_rules, host_map, alias_rules=alias_rules)
+    payload2, _ = run_probe_and_classify(
+        bookmarks, ruleset, effective_rules, host_map, alias_rules=alias_rules)
     identical = serialize_payload(payload1) == serialize_payload(payload2)
     return SuiteResult(
         "B6",
@@ -742,6 +880,7 @@ def run_bench(only=None, defect=None):
 
     chrome_obj, netscape_text, truth_obj, manifest = load_fixtures()
     ruleset, effective_rules, disabled = load_ruleset()
+    alias_rules = build_mock_alias_rules(effective_rules)
     bookmarks = build_uir(chrome_obj, netscape_text)
 
     # mock：动态端口 + unreachable 端口（前提校验：确实拒绝连接）
@@ -758,7 +897,7 @@ def run_bench(only=None, defect=None):
         results_by_id = None
         if need_check:
             check_payload, results_by_url = run_probe_and_classify(
-                bookmarks, ruleset, effective_rules, host_map
+                bookmarks, ruleset, effective_rules, host_map, alias_rules=alias_rules
             )
             # id 对账：truth id = sha1("html|seq")（gen_fixtures 口径：netscape
             # 源名 "html" + 文件内序）。bench 以同口径重建一份 UIR 取 id↔URL，
@@ -791,7 +930,9 @@ def run_bench(only=None, defect=None):
                 suite_b5_dedupe(bench_bookmarks, check_payload, truth_obj, ruleset, manifest, host_map)
             )
         if "B6" in suite_ids:
-            results.append(suite_b6_consistency(bookmarks, ruleset, effective_rules, host_map))
+            results.append(
+                suite_b6_consistency(
+                    bookmarks, ruleset, effective_rules, host_map, alias_rules=alias_rules))
         return results, host_map
     finally:
         server.shutdown()
@@ -820,7 +961,10 @@ def main(argv=None) -> int:
         "--inject-defect",
         default=None,
         choices=list(DEFECTS),
-        help="注入探活缺陷（403-dead：403 通用映射改 dead）——基准必须 exit 1",
+        help=(
+            "注入探活缺陷（403-dead：403 判死；302-first-hop-ignored：规则匹配"
+            "忽略首跳状态）——基准必须 exit 1"
+        ),
     )
     parser.add_argument("--report", default=None, help="指标 JSON 落盘路径（.tmp/ 下，非冻结产物）")
     args = parser.parse_args(argv)

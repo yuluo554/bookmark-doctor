@@ -41,7 +41,7 @@ MOCK_HOSTS = {
     "alive-page.mock.invalid": "200",        # 终态 2xx → alive（通用映射）
     "content-page.mock.invalid": "200",      # 重复收藏承载页（同页多 URL 形态）
     "blocked-403.mock.invalid": "403",       # 反爬 403 → review（B1）
-    "risk-302.mock.invalid": "302",          # 风控跳转 302 → review（B1）
+    "risk-302.mock.invalid": "302",          # 风控跳转 302 → review（B1；mock 发 Location 形成 302→200 链）
     "cdn-521.mock.invalid": "521",           # CDN 拦截 521 → review（B1）
     "gone-404.mock.invalid": "404",          # 死链 404 → dead（B3，唯一通用判死证据）
     "gone-404-b.mock.invalid": "404",        # 死链 404 第二样例（缺 add_date 那条挂此主机）
@@ -321,6 +321,8 @@ def build_manifest(folders, truth, n_items, host_counts, sha_table):
         host_counts.get(h, 0)
         for h in ["blocked-403.mock.invalid", "risk-302.mock.invalid", "cdn-521.mock.invalid"]
     )
+    # 第四类易错形态：反爬 302 被误判存活（风控跳转终态为登录/访客页 200）
+    risk_302_n = host_counts.get("risk-302.mock.invalid", 0)
     manifest = {
         "schema": SCHEMA_MANIFEST,
         "set_id": "set-1",
@@ -332,12 +334,18 @@ def build_manifest(folders, truth, n_items, host_counts, sha_table):
             "folders": len(folders),
         },
         "coverage": {
-            "sampling_note": "抽样覆盖非穷举：以下为三类易错形态的植入清单与件数（应有/实际覆盖双数登记）",
+            "sampling_note": "抽样覆盖非穷举：以下为四类易错形态的植入清单与件数（应有/实际覆盖双数登记）",
             "review_not_dead": {
                 "should_cover": 3,
                 "covered": review_anti_crawl_n,
                 "hosts": ["blocked-403.mock.invalid", "risk-302.mock.invalid", "cdn-521.mock.invalid"],
                 "detail": "反爬 403/302/521 应落 review，不得误判 dead（B1）",
+            },
+            "review_not_alive_302": {
+                "should_cover": 1,
+                "covered": risk_302_n,
+                "hosts": ["risk-302.mock.invalid"],
+                "detail": "反爬 302（风控跳转终态为登录/访客页 200）不得误判 alive（B1 false_alive 门）",
             },
             "unreachable_not_dead": {
                 "should_cover": 2,

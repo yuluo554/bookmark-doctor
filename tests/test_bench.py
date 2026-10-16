@@ -93,6 +93,113 @@ def test_bench_false_dead_zero_hard_gate(bench_green):
     assert metrics["B2"]["false_dead"] == 0
 
 
+def test_bench_false_alive_zero_hard_gate(bench_green):
+    """false_alive=0 硬门：B1 反爬样本不得被判 alive（风控 302→登录页链）。"""
+    _, report = bench_green
+    metrics = {s["suite"]: s["metrics"] for s in report["suites"]}
+    assert metrics["B1"]["false_alive"] == 0
+
+
+def test_bench_b1_samples_hit_real_rules(bench_green):
+    """样本真经规则库：B1 反爬样本命中真实规则 id（非纯通用映射）。"""
+    _, report = bench_green
+    # 从落盘报告读不到逐条结果，改用函数层：直接跑一次流水线检查 rule_id
+    sys.path.insert(0, str(REPO_ROOT / "tools"))
+    try:
+        import bench as bench_mod
+
+        chrome_obj, netscape_text, truth_obj, manifest = bench_mod.load_fixtures()
+        ruleset, effective_rules, _ = bench_mod.load_ruleset()
+        alias_rules = bench_mod.build_mock_alias_rules(effective_rules)
+        # 真实规则全部被桥接（4 条里 3 条有 mock 主机别名）
+        aliased_ids = {r["id"] for r in alias_rules}
+        assert aliased_ids == {"R-ZHIHU-403", "R-WEIBO-302", "R-CSDN-521"}, aliased_ids
+        # 别名只改 host_suffix，其余语义沿用真实规则
+        by_id = {r["id"]: r for r in effective_rules}
+        for alias in alias_rules:
+            real = by_id[alias["id"]]
+            assert alias["match"]["http_status"] == real["match"]["http_status"]
+            assert alias["disposition"] == real["disposition"]
+            assert alias["reason"] == real["reason"]
+            assert alias["match"]["host_suffix"].endswith(".mock.invalid")
+    finally:
+        sys.path.pop(0)
+
+
+def test_bench_alias_bridge_drops_rule_when_real_missing():
+    """桥接可证伪：真实 302 规则不存在 → 无别名 → 样本落通用映射（可判 alive）。
+
+    证明"样本经规则库判定"是真命题：规则消失则基准失去保护（B1 false_alive 面）。
+    """
+    sys.path.insert(0, str(REPO_ROOT / "tools"))
+    try:
+        import bench as bench_mod
+
+        without_weibo = [{"id": "R-ZHIHU-403",
+                          "match": {"host_suffix": "zhihu.com", "http_status": 403},
+                          "disposition": "review", "reason": "http_403_botguard"}]
+        aliases = bench_mod.build_mock_alias_rules(without_weibo)
+        assert {r["id"] for r in aliases} == {"R-ZHIHU-403"}, aliases
+        # risk-302 主机无规则可依 → 302→200 链终态 200 落 alive
+        rec = {"url": "https://risk-302.mock.invalid/x", "http_status": 200,
+               "first_hop_status": 302, "error_class": None}
+        from bookmark_doctor.classify import classify
+        assert classify(rec, aliases)["verdict"] == "alive"
+    finally:
+        sys.path.pop(0)
+
+
+def test_bench_b1_302_sample_forms_real_redirect_chain(bench_green):
+    """302 样本经 mock 真实跳转链（首跳 302 → 终态 200）——非合成 http_status。
+
+    缺陷 2 修复面：bench mock 须发 Location 头，样本须真经规则引擎（首跳 302
+    命中规则）而非被直接喂 http_status=302 绕过 probe。
+    """
+    sys.path.insert(0, str(REPO_ROOT / "tools"))
+    try:
+        import bench as bench_mod
+
+        chrome_obj, netscape_text, truth_obj, manifest = bench_mod.load_fixtures()
+        ruleset, effective_rules, _ = bench_mod.load_ruleset()
+        alias_rules = bench_mod.build_mock_alias_rules(effective_rules)
+        bookmarks = bench_mod.build_uir(chrome_obj, netscape_text)
+        server, mock_base_url = bench_mod.start_mock_server()
+        try:
+            unreachable_port = bench_mod._find_free_port()
+            mock_base = type("MB", (), {"port": bench_mod._url_port(mock_base_url)})()
+            host_map = bench_mod.build_host_map(manifest, mock_base, unreachable_port)
+            payload, _ = bench_mod.run_probe_and_classify(
+                bookmarks, ruleset, effective_rules, host_map, alias_rules=alias_rules)
+        finally:
+            server.shutdown()
+            server.server_close()
+        # 302 样本：重写后 host 为 loopback、原文主机名不进 URL（命名空间段 /bN），
+        # 故按规则 id 识别（别名规则 R-WEIBO-302 仅挂 risk-302.mock.invalid）
+        risk = [r for r in payload["results"] if r["rule_id"] == "R-WEIBO-302"]
+        assert risk, "未找到 302 反爬样本"
+        sample = risk[0]
+        assert sample["first_hop_status"] == 302, "首跳状态未记录（缺陷 1 回归）"
+        assert sample["http_status"] == 200, "终态应跟随跳转到 200"
+        assert sample["redirect_chain"], "跳转链为空——mock 未发 Location 头"
+        assert sample["verdict"] == "review"
+    finally:
+        sys.path.pop(0)
+
+
+def test_bench_defect_302_first_hop_ignored_exit1(bench_green):
+    """探活（可证伪）：规则匹配忽略首跳 → 风控 302→200 链判 alive → B1 红 + exit 1。
+
+    这是"招牌功能空转"（缺陷 1）的基准级探活：修复前该缺陷真实存在于实现中。
+    """
+    proc = _run_bench(["--inject-defect", "302-first-hop-ignored", "--only", "B1"])
+    assert proc.returncode == 1, "302 首跳缺陷未被基准抓到（基准失真）"
+    payload = _parse_report(proc.stdout)
+    b1 = [s for s in payload["suites"] if s["suite"] == "B1"][0]
+    assert b1["passed"] is False
+    assert b1["metrics"]["false_alive"] >= 1
+    assert payload["injected_defect"] == "302-first-hop-ignored"
+
+
 def test_bench_thresholds_from_manifest_not_code(bench_green):
     """门槛是数据非代码：suite 阈值与 manifest should_cover 一致（plan/05 §4.2）。"""
     _, report = bench_green
