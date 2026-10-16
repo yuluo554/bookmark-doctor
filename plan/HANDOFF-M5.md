@@ -50,6 +50,14 @@ M4 无新增冻结口径（基准是消费方，不改判定语义）。沿用�
 - [x] 指标写进 README（如实，未达标不预填）
 - [x] 基线复跑记录（bench exit 0 + 双解释器 131 passed ×2）；HANDOFF-M5 落盘 + commit
 
+### 2026-10-16 审计加固补录（M4 基准）
+
+缺陷 2（基准保真）修复：bench mock 补发 `Location` 头形成**真实跳转链**（302→登录/访客页 200），
+样本经 mock 主机别名规则**真经规则库**判定（不再零命中、不再靠通用映射）；新增
+`false_alive` 门（反爬 302 不得判 alive）+ manifest 第四类覆盖 `review_not_alive_302`；
+探活缺陷扩为 `403-dead` 与 `302-first-hop-ignored`（二者均须 exit 1）。
+详见 `plan/06-里程碑与每周演示.md` M4 行与 `tools/bench.py` 注释。
+
 ## 六、关键命令速查（增量）
 
 ```bash

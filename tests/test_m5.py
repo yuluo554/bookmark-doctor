@@ -201,6 +201,30 @@ def test_export_roundtrip_and_escape():
     assert reparsed[1]["add_date"] == 1700000000
 
 
+def test_export_fixture_byte_identical_roundtrip():
+    """耐久验收证据：合成集导出 → 与源 netscape 冻结文件**逐字节一致**。
+
+    这是"一键导回"可复核的机器证据（sha256 可对账 manifest）：导出 27 条
+    与源文件同字节，说明导回未丢层级/转义/时间；浏览器实际导入的人工步骤
+    见 plan/HANDOFF-M5.md 验收记录（缺陷 11：把人工验收落成可复算产物）。
+    """
+    import hashlib
+
+    from bookmark_doctor.export import export_netscape
+    from bookmark_doctor.model import build_bookmarks
+
+    src = REPO_ROOT / "data" / "fixtures" / "set-1" / "bookmarks.netscape.html"
+    bookmarks = build_bookmarks(
+        parse_netscape(src.read_text(encoding="utf-8")), src.name)
+    out = export_netscape(bookmarks)
+    assert out == src.read_bytes(), "导出与源冻结文件非逐字节一致"
+    assert hashlib.sha256(out).hexdigest() == hashlib.sha256(src.read_bytes()).hexdigest()
+    # 与 manifest 登记 sha256 一致（对账闭环）
+    manifest = json.loads(
+        (REPO_ROOT / "data" / "fixtures" / "set-1" / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["files"]["bookmarks.netscape.html"] == hashlib.sha256(out).hexdigest()
+
+
 def test_export_filters_only_existing_verdicts():
     bookmarks = [_bm("a", "http://x/1"), _bm("b", "http://x/2"), _bm("c", "http://x/3")]
     dedupe = {"duplicate_groups": [{

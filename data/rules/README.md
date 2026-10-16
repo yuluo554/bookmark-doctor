@@ -9,3 +9,11 @@ M1 起收录 `ruleset.json`：中文站点反爬响应特征的**版本化降级
 - 全部可调数值**只在本目录定义一次**，引擎/基准/测试不得出现第二份。
 
 状态：✅ M1 已产出（ruleset v1：probe 参数 + 4 条降级规则全挂 verified 锚点 + 追踪参数表 + aging 分档 + similarity 阈值；版本号内容哈希派生；`--check` 位级一致双解释器实测通过）。
+
+### 悬空配置登记（缺陷 12：扩展项状态，不强行实现）
+
+| 节 | 状态 | 说明 |
+|---|---|---|
+| `similarity.threshold` | **P1 扩展项，未消费** | 标题相似度阈值（plan/02 FR-23）——当前 `src/` 无消费点（去重以 URL 规范化为主，标题相似只作辅助提示）。题面已降级为 P1/扩展项，故保留单点定义待后续接入，**不强行实现**。 |
+| `shortlink_known`（短链映射） | **P1 扩展项，未消费** | plan/02 FR-22 短链映射表——当前 normalize 不做映射（未收录短链不猜，题面边界纪律）；待实测可解析映射后接入 `dedupe` 注入位，**不强行实现**。 |
+| `aging.tiers_days` / `tracked_query_params` / `probe.*` / `degrade_rules` | **已消费** | 分别由 aging.py / normalize+dedupe / probe.py / classify.py 消费（单点引用，零第二份）。 |

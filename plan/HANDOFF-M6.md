@@ -52,6 +52,21 @@ M5 新红线已落地（原 M4 预告）：
 - [x] 干净环境按 README 逐条跑通（本地等价校验，记录退出码：数据 --check 双 0 / run 端到端 0 / bench 0；CI 待首推）
 - [x] HANDOFF-M6 落盘 + commit
 
+### M5 人工验收耐久证据（缺陷 11 补录，2026-10-16）
+
+**主证据（机器、可复算）**：合成集导回产物与源冻结文件**逐字节一致**——
+"一键导回"未丢层级/转义/时间戳，浏览器可导入性由"与浏览器导出标准格式同构"直接支撑。
+
+| 项 | 值 |
+|---|---|
+| 输入 | `data/fixtures/set-1/bookmarks.netscape.html`（27 条；manifest 登记 sha256 `6060c78049a994ca22d1b294e86af1376fb4c3df695b7ef45c5eb91e8f8464fc`） |
+| 导出命令 | `PYTHONPATH=src py -X utf8 -m bookmark_doctor import <set-1 双格式> --out tree.json` → `export tree.json --out bookmarks-export.html` |
+| 导出产物 sha256 | `6060c78049a994ca22d1b294e86af1376fb4c3df695b7ef45c5eb91e8f8464fc`（与源文件逐字节一致） |
+| 复算测试 | `tests/test_m5.py::test_export_fixture_byte_identical_roundtrip`（常驻断言，可一键复跑） |
+| 浏览器导入（人工，2026-10-15） | Chrome 书签管理器 → 导入 `out/bookmarks-export.html` → 27 条按 4 文件夹层级落地，标题/URL 与源一致（无乱码、无丢条） |
+
+> 口径：机器证据（字节一致 + 常驻测试）为**主证据**（可复核、可复跑）；浏览器实际导入为**辅助人工确认**，其可复核性由"导出格式与浏览器导出标准格式同构 + 字节级往返一致"背书。不再以"验收人手工确认"作为唯一证据。
+
 ## 六、关键命令速查（增量）
 
 ```bash
