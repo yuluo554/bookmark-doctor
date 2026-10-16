@@ -107,9 +107,16 @@
 
 ### 9.3 重发布动作与复核
 
-- 旧 tag 删除（`git push --delete origin v0.1.0` + 本地 `git tag -d v0.1.0`）→ 在审计修复终态提交重打 annotated `v0.1.0`；
-- Release 附件重建（便携 zip `ZIP_STORED` + 固定 `date_time` 确定性 + 标准 sdist）→ 重传 → 真下载 sha256 复验；
-- 复验后 `git show v0.1.0:README.md` 为已发布态、`git show v0.1.0:plan/06` 含 M6 与本次审计加固记录。
+- 旧 tag 删除（`git push --delete origin v0.1.0` + 本地 `git tag -d v0.1.0`）→ 在审计修复终态提交（**含本 §9 记录的提交**）重打 annotated `v0.1.0`；
+- Release 附件重建（便携 zip `ZIP_STORED` + 固定 `date_time=(2026,10,16,0,0,0)` 确定性 + 标准 sdist）→ 重传 → 真下载 sha256 复验；
+- 复验后 `git show v0.1.0:README.md` 为已发布态、`git show v0.1.0:plan/RELEASE-M6.md` 含本 §9（审计加固记录在 tag 树内）。
 
-> **重发布留档（回填位）**：新 tag 指向 commit `______`；附件 sha256 `______` / `______`；
-> CI 三矩阵 run id `______`。发布后回填。
+### 9.4 重发布留档（回填）
+
+| 项 | 值 |
+|---|---|
+| 重打 tag | `v0.1.0`（annotated，打在含本 §9 的审计修复终态提交；提交 sha 见末次回填） |
+| `bookmark-doctor-0.1.0-source.zip` | sha256 `eec8c14040404fb5fc58c002616a0083133bcdf92eae1c114f6d5d1cb6316146`（505929 字节；两次打包逐字节一致） |
+| `bookmark_doctor-0.1.0.tar.gz` | sha256 `7f01a071a7a2b6578f5c40b4c34a6f19aa6cf7346b6b3bf5ac44e737c6755dfc`（71482 字节） |
+| CI（审计后重推） | push run `38898174315`（修复提交 `61832dd`）三矩阵全 success；后续回填提交的 run id 见 §4 末次记录 |
+| 发布物本体复核 | `gh release download v0.1.0` → 两附件 sha256 与上表逐位一致 → 解包跑 `test_m5`+`test_bench` + 数据 `--check` |
