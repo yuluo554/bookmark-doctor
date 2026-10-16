@@ -94,13 +94,14 @@ def match_rule(probe_record, rule):
     want_status = match.get("http_status")
     if want_status is None:
         return False
+    # 匹配语义（M3 冻结）：观测侧"首跳或终态任一命中"即可。风控链（如微博
+    # 302 → passport 访客页 200）跟随跳转后终态为 200，若只读终态则规则永不
+    # 命中、风控链被判 alive——故必须同时看首跳状态（probe.first_hop_status）。
     observed = []
-    if probe_record.get("http_status") is not None:
-        observed.append(probe_record["http_status"])
-    # 跳转链上每跳的响应状态未知（probe 只记 URL）——首跳状态 = 原始 url 的响应。
-    # probe_record 的 http_status 即"终态或跟随耗尽前最后一次收到的状态"，
-    # redirect_chain[0] 的响应形态由 http_status 兜底覆盖（M1 实测口径：
-    # 规则挂"首跳 302/403/521"时 probe 的单状态字段就是该响应）。
+    for key in ("first_hop_status", "http_status"):
+        value = probe_record.get(key)
+        if value is not None:
+            observed.append(value)
     return want_status in observed
 
 
@@ -118,15 +119,19 @@ def _conservative(pairs):
     return best[0], best[1], conflict_note
 
 
-def classify(probe_record, effective_rules):
+def classify(probe_record, effective_rules, match_fn=None):
     """探测记录 + 生效规则 → 分类结果 dict（check.json 条目后半）。
 
     返回：{"verdict", "reason", "rule_id"(或 None), "conflict"(或 None)}。
     规则优先于通用映射；多规则冲突取保守并留备注（plan/04 §2.2）。
+
+    ``match_fn``：规则匹配函数覆盖位（缺省 ``match_rule``；基准探活注入
+    缺陷用——不改判定优先级语义）。
     """
+    matcher = match_fn or match_rule
     hits = []
     for rule in effective_rules:
-        if match_rule(probe_record, rule):
+        if matcher(probe_record, rule):
             hits.append((rule.get("disposition"), rule.get("reason"), rule.get("id")))
     if hits:
         verdict, reason, conflict_note = _conservative(hits)

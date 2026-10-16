@@ -9,8 +9,9 @@
   先解析观测台账，再过滤规则）：每条 ``degrade_rules`` 规则的
   ``anchor.observation_id`` 必须解析到台账中 ``check_status=verified`` 的观测；
   否则该规则**拒绝加载**，连同原因进"未启用清单"；
-- "未启用清单"必须随每次 check 运行输出（stderr + check.json 汇总）——
-  防"承诺可追溯、实际静默照判"（plan/04 §2.3）。
+- "未启用清单"必须随每次 check 运行输出（**stderr 逐条打印未启用规则与原因 +
+  check.json 的 `rules_disabled` 字段**）——防"承诺可追溯、实际静默照判"
+  （plan/04 §2.3）。stderr 侧由 CLI `_cmd_check` 落点，本模块只产出清单。
 
 本模块不含任何探测数值 / 平台主机名字面量（零字面量门禁，plan/03 §9）。
 """

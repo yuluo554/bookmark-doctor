@@ -138,6 +138,36 @@ def test_check_cli_ruleset_broken_exit2(tmp_path, mock_base):
     assert proc.returncode == 2
 
 
+def test_check_cli_disabled_rules_printed_to_stderr(tmp_path, mock_base):
+    """未启用清单随运行输出到 stderr（plan/04 §2.3 承诺；缺陷 8 修复）。"""
+    tree = _make_tree(tmp_path, mock_base)
+    rules = {
+        "schema": "bookmark-doctor.ruleset/1",
+        "probe": {"timeout_s": 5, "retry_max": 0, "delay_s": 0,
+                  "redirect_max": 5, "user_agent": "t/0.1"},
+        "degrade_rules": [
+            {"id": "R-PENDING", "match": {"host_suffix": "x.invalid", "http_status": 403},
+             "disposition": "review", "reason": "r",
+             "anchor": {"observation_id": "OBS-20261015-bilibili-redirect-claim",
+                        "check_status": "verified"}},
+        ],
+    }
+    rules_path = tmp_path / "rules.json"
+    rules_path.write_text(json.dumps(rules), encoding="utf-8")
+    out = tmp_path / "c.json"
+    proc = _run_cli(
+        ["check", str(tree), "--rules", str(rules_path),
+         "--probe-date", "2026-10-15", "--out", str(out)],
+        tmp_path,
+    )
+    assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+    stderr = proc.stderr.decode("utf-8", "replace")
+    assert "未启用规则" in stderr and "R-PENDING" in stderr
+    assert "anchor_not_verified" in stderr
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["rules_disabled"][0]["id"] == "R-PENDING"
+
+
 def test_dedupe_cli_happy_path(tmp_path, mock_base):
     tree_path = tmp_path / "tree.json"
     tree = json.loads(tree_path.read_text(encoding="utf-8")) if tree_path.exists() else None

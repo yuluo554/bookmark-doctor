@@ -126,6 +126,26 @@ def test_redirect_chain_recorded(mock_base):
     assert r.redirect_chain[-1].endswith("/final/200")
 
 
+def test_first_hop_status_preserved_on_redirect(mock_base):
+    """首跳状态必须保留（反爬 302→登录页 200 场景）。
+
+    缺陷复现：跟随跳转后若只留终态（200），ruleset 里挂 ``http_status=302``
+    的风控规则永不命中——微博 302 会被通用映射判 alive。修复后探测记录须
+    同时给出首跳状态（302）与终态（200）。
+    """
+    r = probe_url(mock_base + "/redirect/302", _cfg())
+    assert r.http_status == 200
+    assert r.final_url.endswith("/final/200")
+    assert r.first_hop_status == 302, "首跳状态丢失——302 风控规则将永不命中"
+
+
+def test_first_hop_status_equals_terminal_without_redirect(mock_base):
+    """无跳转时首跳状态 = 终态（同一响应）。"""
+    r = probe_url(mock_base + "/status/403", _cfg())
+    assert r.http_status == 403
+    assert r.first_hop_status == 403
+
+
 def test_redirect_loop(mock_base):
     r = probe_url(mock_base + "/redirect/loop", _cfg())
     assert r.error_class == "redirect_loop"
@@ -172,6 +192,26 @@ def test_user_agent_from_config():
         server.shutdown()
         server.server_close()
     assert seen["ua"] == "pytest-probe/0.1"
+
+
+def test_probe_missing_params_raise_no_defaults():
+    """引擎零默认值：probe 五参数缺任一即报错（不静默补 0/空串）。"""
+    base = _cfg()
+    for key in ("user_agent", "timeout_s", "retry_max", "redirect_max", "delay_s"):
+        broken = dict(base)
+        del broken[key]
+        with pytest.raises(ValueError) as exc:
+            probe_url("http://127.0.0.1:1/x", broken)
+        assert "probe.%s" % key in str(exc.value), key
+
+
+def test_probe_bookmarks_missing_delay_raises():
+    from bookmark_doctor.probe import probe_bookmarks
+
+    broken = _cfg()
+    del broken["delay_s"]
+    with pytest.raises(ValueError):
+        probe_bookmarks(["http://127.0.0.1:1/x"], broken)
 
 
 def test_redirect_limit_exceeded():

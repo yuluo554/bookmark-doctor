@@ -316,6 +316,27 @@ def _cmd_check(args) -> int:
     except (RulesetError, OSError, ValueError) as exc:
         print("[check] 规则包不可用: %s" % exc, file=sys.stderr)
         return 2
+    # "未启用清单"随每次运行输出（stderr + check.json 汇总）——防"承诺可追溯、
+    # 实际静默照判"（plan/04 §2.3）。空清单也显式打一行（可审计：确证已核过）。
+    if disabled:
+        for item in disabled:
+            print(
+                "[check] 未启用规则 %s：%s（锚点 %s%s）"
+                % (
+                    item.get("id"),
+                    item.get("reason"),
+                    item.get("observation_id"),
+                    "，观测状态=%s" % item.get("check_status")
+                    if item.get("check_status")
+                    else "",
+                ),
+                file=sys.stderr,
+            )
+    else:
+        print(
+            "[check] 未启用规则清单为空（%d 条规则全部过锚点硬门）" % len(effective_rules),
+            file=sys.stderr,
+        )
     probe_date = args.probe_date or datetime.date.today().isoformat()
     bookmarks = tree.get("bookmarks", [])
     urls = [bm["url"] for bm in bookmarks]
@@ -341,6 +362,7 @@ def _cmd_check(args) -> int:
                 "final_url": record["final_url"],
                 "redirect_chain": record["redirect_chain"],
                 "http_status": record["http_status"],
+                "first_hop_status": record["first_hop_status"],
                 "error_class": record["error_class"],
                 "verdict": outcome["verdict"],
                 "reason": outcome["reason"],

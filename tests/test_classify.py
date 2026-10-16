@@ -133,3 +133,64 @@ def test_probe_incomplete_conservative():
         "review",
         "probe_incomplete",
     )
+
+
+# ---------------------------------------------------------------------------
+# 首跳/终态匹配语义（招牌链路：风控 302 → 登录/访客页 200 不得判 alive）
+# ---------------------------------------------------------------------------
+
+_RULE_302 = {
+    "id": "R-TEST-302",
+    "match": {"host_suffix": "risk.example", "http_status": 302},
+    "disposition": "review",
+    "reason": "http_302_risk",
+}
+
+
+def test_match_rule_first_hop_status_hits_after_redirect():
+    """缺陷复现→修复：302→200 跟随跳转后终态为 200，规则挂 302 仍须命中。
+
+    探测记录同时带首跳 302 与终态 200（probe.first_hop_status）——只读终态
+    会让风控规则永不命中、被判 alive（招牌功能空转）。
+    """
+    rec = {
+        "url": "https://risk.example/article/1",
+        "final_url": "https://passport.risk.example/visitor",
+        "redirect_chain": ["https://passport.risk.example/visitor"],
+        "http_status": 200,
+        "first_hop_status": 302,
+        "error_class": None,
+    }
+    assert match_rule(rec, _RULE_302), "首跳 302 未命中——风控链被判 alive"
+    out = classify(rec, [_RULE_302])
+    assert out["verdict"] == "review"
+    assert out["rule_id"] == "R-TEST-302"
+
+
+def test_match_rule_terminal_status_still_hits():
+    """终态命中语义不回归：规则挂终态状态时仍命中。"""
+    rec = {
+        "url": "https://risk.example/x",
+        "final_url": "https://risk.example/x",
+        "redirect_chain": [],
+        "http_status": 302,
+        "first_hop_status": 302,
+        "error_class": None,
+    }
+    assert match_rule(rec, _RULE_302)
+
+
+def test_match_rule_ignores_non_matching_first_hop():
+    """反向样例：首跳与终态都非目标状态时不得命中（防匹配面写宽）。"""
+    rec = {
+        "url": "https://risk.example/x",
+        "final_url": "https://risk.example/x",
+        "redirect_chain": [],
+        "http_status": 404,
+        "first_hop_status": 301,
+        "error_class": None,
+    }
+    assert not match_rule(rec, _RULE_302)
+    # 无首跳字段的旧形态记录：终态命中语义仍成立（向后兼容）
+    legacy = {"url": "https://risk.example/x", "http_status": 302, "error_class": None}
+    assert match_rule(legacy, _RULE_302)
