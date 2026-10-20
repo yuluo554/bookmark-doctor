@@ -4,4 +4,4 @@
 重复合并 / 长期未访问画像与本地 HTML 报告 / 一键导回（Netscape Bookmark HTML）。
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
