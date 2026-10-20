@@ -7,6 +7,12 @@ on:
 permissions:
   contents: read
 
+# 同一分支的旧 run 被新 run 取消（省额度；不取消 main 上的进行中 run——
+# 发布留档要求每个提交的 CI 结论可查，见 plan/RELEASE-M6.md）。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   test:
     name: test (${{ matrix.os }}, py${{ matrix.python }})
@@ -15,10 +21,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 旧解释器（3.8，项目底线）只在 windows 守；ubuntu 新镜像对 3.8 支持存疑，
-        # POSIX 通路走 ubuntu 3.12（见 plan/03 §5）。
+        # 旧解释器（3.9，项目底线）只在 windows 守；ubuntu 新镜像对旧版本支持存疑，
+        # POSIX 通路走 ubuntu 3.12（见 plan/03 §5）。3.9 底线源自 PEP 639 所需的
+        # setuptools>=77（其自身要求 py>=3.9）——见 pyproject.toml 的注释。
         include:
-          - { os: windows-latest, python: "3.8" }
+          - { os: windows-latest, python: "3.9" }
           - { os: windows-latest, python: "3.12" }
           - { os: ubuntu-latest, python: "3.12" }
     env:
@@ -27,11 +34,11 @@ jobs:
       # 防 pyc 偶发损坏
       PYTHONDONTWRITEBYTECODE: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # 为后续"历史扫描类守门测试"预留：浅克隆会让那类测试静默空验
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
       - name: Install package with dev extras

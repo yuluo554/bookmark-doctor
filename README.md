@@ -1,6 +1,6 @@
 # bookmark-doctor（收藏夹体检工具 · 中文站点友好）
 
-> **状态：✅ v0.1.0 已发布（2026-10-15）** —— 计划文档、数据资产、检测/去重引擎、内置基准与全子命令（import/check/dedupe/report/export/run）均已落盘并跑通。Release：[v0.1.0](https://github.com/yuluo554/bookmark-doctor/releases/tag/v0.1.0)；CI 三矩阵（windows 3.8/3.12 + ubuntu 3.12）全绿。
+> **状态：✅ v0.2.0 已发布（2026-10-20）** —— 计划文档、数据资产、检测/去重引擎、内置基准与全子命令（import/check/dedupe/report/export/run）均已落盘并跑通。Release：[v0.2.0](https://github.com/yuluo554/bookmark-doctor/releases/tag/v0.2.0)；CI 三矩阵（windows 3.9/3.12 + ubuntu 3.12）全绿。
 
 导入浏览器导出的 `bookmarks.html`，一次跑完失效检测 + 重复合并 + 长期未访问画像 + 一键导回，**并专门适配中文站点**——微信文章 / 知乎 / B站 / 微博的链接不能按普通 HTTP 状态一刀切。零依赖、纯本地 CLI（不是浏览器扩展）。
 
@@ -27,7 +27,7 @@ python -m venv .venv
 
 # 2. 激活（Windows: .venv\Scripts\activate ｜ macOS/Linux: source .venv/bin/activate）
 
-# 3. 升级 pip（Python 3.8 自带 pip 20 不支持 pyproject 可编辑安装，必须先升）
+# 3. 升级 pip（确保 pip 支持 pyproject 可编辑安装 / PEP 660）
 python -m pip install --upgrade pip
 
 # 4. 可编辑安装（含测试依赖）
@@ -49,7 +49,7 @@ PYTHONPATH=src py -X utf8 -m bookmark_doctor run data/fixtures/set-1/bookmarks.n
 PYTHONPATH=src py -X utf8 tools/bench.py
 ```
 
-## 完整能力（v0.1.0 全部开放）
+## 完整能力（v0.2.0 全部开放）
 
 | 子命令 | 能力 | 里程碑 |
 |---|---|---|
@@ -62,14 +62,14 @@ PYTHONPATH=src py -X utf8 tools/bench.py
 
 ## 下载即用
 
-- **源码包**（推荐）：从 [Release v0.1.0](https://github.com/yuluo554/bookmark-doctor/releases/tag/v0.1.0) 下载 `bookmark-doctor-0.1.0-source.zip`（便携源码包，解压即用）或 `bookmark_doctor-0.1.0.tar.gz`（标准 sdist）；附件 sha256 见 Release 说明与 `plan/RELEASE-M6.md`。
+- **源码包**（推荐）：从 [Release v0.2.0](https://github.com/yuluo554/bookmark-doctor/releases/tag/v0.2.0) 下载 `bookmark-doctor-0.2.0-source.zip`（便携源码包，解压即用）或 `bookmark_doctor-0.2.0.tar.gz`（标准 sdist）；附件 sha256 见 Release 说明与 `plan/RELEASE-M7.md`。
 - **免安装运行**：源码树内 `PYTHONPATH=src python -X utf8 -m bookmark_doctor <子命令>`，无需 `pip install`（零第三方运行时依赖）。
 - **安装为命令**：`python -m pip install -e .` 后直接用 `bookmark-doctor <子命令>`。
-- 要求 Python ≥ 3.8；无需联网（仅 `check` 探测时需要访问被检测的链接）。
+- 要求 Python ≥ 3.9；无需联网（仅 `check` 探测时需要访问被检测的链接）。
 
 ## 已知环境问题
 
-- **Python 3.8 自带 pip 20 不支持 `pyproject.toml` 可编辑安装**（报 "editable mode currently requires a setup.py based build"）→ 先 `python -m pip install --upgrade pip` 再 `-e`（README 快速开始第 3 步已含）。
+- **极旧的 pip 不支持 `pyproject.toml` 可编辑安装**（报 "editable mode currently requires a setup.py based build"；需 PEP 660，pip ≥ 21.3）→ 先 `python -m pip install --upgrade pip` 再 `-e`（README 快速开始第 3 步已含）。
 - **Windows 控制台中文输出**：CLI 入口已内置 UTF-8 守卫；直接用 `python -m bookmark_doctor` 时建议加 `-X utf8`（README 命令均带）。
 - **`--exclude-dead` / `--apply-dedupe` 需配套产物**：开关必须与 `--check` / `--dedupe` 对应产物同用，缺失则 exit 2（防误删——默认不删不改）。
 
@@ -142,9 +142,9 @@ PYTHONPATH=src py -X utf8 -m bookmark_doctor export out/tree.json --check out/ch
 
 ## 开发说明
 
-- 运行时**零第三方依赖**（纯 Python 标准库）；测试期依赖仅 `pytest`（`[dev]` extras）。
+- 运行时**零第三方依赖**（纯 Python 标准库）；测试期依赖 **`pytest` + `pyyaml`**（`[dev]` extras；`pyyaml` 供 CI workflow 解析守门测试使用——防"非法 YAML → GitHub 静默不建任何 job"）。
 - 目录结构：`src/bookmark_doctor/`（包）、`tools/`（生成器 / 基准 / 审计脚本）、`data/`（规则库 / 合成集 / 实测记录）、`tests/`。
-- CI：GitHub Actions 三矩阵（windows×{3.8, 3.12} + ubuntu×3.12）；**已首推验证全绿**（远端实测，见 [plan/RELEASE-M6.md](plan/RELEASE-M6.md)）。
+- CI：GitHub Actions 三矩阵（windows×{3.9, 3.12} + ubuntu×3.12）；**已首推验证全绿**（远端实测，见 [plan/RELEASE-M6.md](plan/RELEASE-M6.md)）。
 
 ## License
 

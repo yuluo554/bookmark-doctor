@@ -15,6 +15,6 @@
 
 1. **编码守卫**：脚本入口第一步调用 `ensure_utf8_stdio()`（`from bookmark_doctor._encoding import ensure_utf8_stdio`）；所有输出走 stdout/stderr 前先守卫。
 2. **确定性**：禁 stdlib `random`、禁系统时钟、禁 set 迭代序；输出经显式 sort；写盘用 `write_bytes` / `newline="\n"`。
-3. **Python 3.8 兼容**：项目底线 3.8（本机默认通道 3.8.8），不使用 3.9+ 语法/API。
+3. **Python 3.9 兼容**：项目底线 3.9（PEP 639 SPDX license 所需 setuptools>=77 要求 py>=3.9），不使用 3.10+ 语法/API。
 4. **运行方式**：从仓库根运行（如 `py -X utf8 tools/bench.py`），依赖已安装的包（`pip install -e ".[dev]"`）或 `PYTHONPATH=src`。
 5. 维护 / 发布类工具留在本目录，**不挂到用户 CLI**。

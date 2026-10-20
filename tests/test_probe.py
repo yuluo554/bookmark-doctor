@@ -7,6 +7,7 @@ ruleset 测试复用仓库正本 + 合成构造的台账场景。
 import importlib.util
 import json
 import threading
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
@@ -91,6 +92,27 @@ def mock_base():
     server.server_close()
 
 
+@pytest.fixture
+def direct_opener():
+    """**不走任何代理**的 opener——网络错误类测试专用。
+
+    本机若配了代理，``urllib`` 会把请求发给代理，代理对不存在的主机返回 502，
+    于是 ``probe_url`` 拿到一个"合法"响应、``error_class`` 保持 ``None``：
+    DNS 失败**从未发生**（请求没走到 DNS），测的就不再是 dns_failure 通路。
+    显式传 ``ProxyHandler({})``——``build_opener`` 见到已存在 ProxyHandler 实例
+    就不再挂默认那个（它会读环境变量/注册表），故环境变量与系统代理一并屏蔽。
+    产品行为不变，只固定测试的运行前提。
+    """
+
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+
+    return urllib.request.build_opener(
+        urllib.request.ProxyHandler({}), _NoRedirect()
+    )
+
+
 def _cfg(**overrides):
     cfg = {
         "timeout_s": 5,
@@ -159,18 +181,20 @@ def test_head_rejected_falls_back_to_get(mock_base):
     assert r.error_class is None
 
 
-def test_dns_failure(mock_base):
-    r = probe_url("http://unreachable.invalid/x", _cfg(timeout_s=3))
+def test_dns_failure(mock_base, direct_opener):
+    # direct_opener：不经代理，确保请求真的走到 DNS（否则代理返回 502，
+    # error_class 保持 None——测的就不是 dns_failure 通路了）。
+    r = probe_url("http://unreachable.invalid/x", _cfg(timeout_s=3), opener=direct_opener)
     assert r.error_class == "dns_failure"
 
 
-def test_connection_refused(mock_base):
-    r = probe_url("http://127.0.0.1:1/x", _cfg(timeout_s=3))
+def test_connection_refused(mock_base, direct_opener):
+    r = probe_url("http://127.0.0.1:1/x", _cfg(timeout_s=3), opener=direct_opener)
     assert r.error_class == "connection_error"
 
 
-def test_hang_times_out(mock_base):
-    r = probe_url(mock_base + "/never", _cfg(timeout_s=1))
+def test_hang_times_out(mock_base, direct_opener):
+    r = probe_url(mock_base + "/never", _cfg(timeout_s=1), opener=direct_opener)
     assert r.error_class in ("read_timeout", "connect_timeout")
 
 
