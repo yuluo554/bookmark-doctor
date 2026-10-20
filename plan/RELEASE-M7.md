@@ -74,6 +74,8 @@ SPDX 写法 @ py3.8 → exit=1  ValueError: invalid pyproject.toml config: `proj
 - 矩阵：`windows-latest×3.9` + `windows-latest×3.12` + `ubuntu-latest×3.12`；
 - actions：`actions/checkout@v7` / `actions/setup-python@v7`（均为 `node24` 运行时，无 Node20 弃用注解）；
 - `concurrency`：同 ref 新 run 取消旧 run，但 **main 分支不取消**（保留每个提交 CI 结论可查）；
+- **实测结论（发布时点）**：main push 与 tag push 各触发一轮，共 **6 个 check-run 全 `success`**（三矩阵 × 两轮）。
+  注解仅 1 条 `notice`（`ubuntu-latest` 将于 2026-10-19 起迁移 Ubuntu 26 的预告）；**Node20 弃用注解 0 条**。
 - 取值方式（不抄会变的裸数字）：
   `gh run list --repo yuluo554/bookmark-doctor --branch main --limit 3` 与
   `gh api repos/yuluo554/bookmark-doctor/commits/<sha>/check-runs --jq '[.check_runs[]|.conclusion]'`。
@@ -98,6 +100,16 @@ SPDX 写法 @ py3.8 → exit=1  ValueError: invalid pyproject.toml config: `proj
 | 附件 | `bookmark-doctor-0.2.0-source.zip` / `bookmark_doctor-0.2.0.tar.gz`（ASCII 名，sha256 见 §3） |
 | 上一版 | `v0.1.0` 的 tag 与两个附件**保持原样**（历史事实不覆盖） |
 
+### 6.1 发布后复核（真下载实测）
+
+| 项 | 结论 |
+|---|---|
+| 附件三方对撞 | 本地构建物 sha256 = GitHub Release 附件 digest **逐字符一致**（zip `2e89709a…`、sdist `ad5159bf…`） |
+| 真下载复核 | `gh release download v0.2.0` 取回两件 → sha256 与 §3 留档**逐字符一致**（500701 / 72304 字节） |
+| 冻结态冒烟 | 下载的 zip 解包 → `PYTHONPATH=src python -X utf8 -m bookmark_doctor --version` → `bookmark-doctor 0.2.0`；`--selftest` 退出码 0 |
+| 上一版未被改坏 | `v0.1.0` Release 的 `createdAt` 与两个附件 digest 与发布前一致（`cd243d4a…b369` / `d7e03a3c…734d6`） |
+| 标签指向 | `v0.2.0`（annotated）→ `git rev-parse v0.2.0^{commit}` = 发布提交（`main` 上 CI 已验证的那个提交） |
+
 ## 7. 已知残留（不掩盖）
 
 1. **Python 3.8 用户的实际报错文案不友好**：为"构建依赖 `setuptools>=77` 解析失败"，
@@ -108,6 +120,8 @@ SPDX 写法 @ py3.8 → exit=1  ValueError: invalid pyproject.toml config: `proj
    `pyproject.toml`、`ci.yml` 已同步为 3.9。
 4. **`update/`（诊断与执行交接物）未入本版本控制**：含本机绝对路径，按纪律排除。
 5. **临时构建目录**均在系统临时目录，未入仓库。
+6. **`ubuntu-latest` 迁移预告**：CI 出现 1 条 `notice`——`ubuntu-latest` 将于 2026-10-19 起迁移到 Ubuntu 26。
+   本版 `ubuntu×3.12` 腿在该时点仍全绿；若后续镜像切换引发问题，属 runner 侧，需另行跟进而非本版缺陷。
 
 ## 8. 脱敏（本版沿用 M6 四步口径）
 
