@@ -38,3 +38,6 @@ data/**/_private/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# 迭代诊断/交接目录（由「诊断对话」产出，含本机绝对路径，不入公共仓）
+update/
